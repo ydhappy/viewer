@@ -24,6 +24,9 @@ public sealed class S32GridRenderPanel : Panel
     private float _zoom = 1.0f;
     private int _lastTileImageSuccessCount;
     private int _lastTileImageAttemptCount;
+    private int _lastVisibleTileCount;
+    private int _lastDrawnTileCount;
+    private int _lastSkippedTileCount;
     private int _tileImageDrawAttemptLimit = DefaultTileImageDrawAttemptsPerPaint;
     private bool _tileImageRenderEnabled = true;
     private S32RenderMode _renderMode = S32RenderMode.ColorGrid;
@@ -109,7 +112,8 @@ public sealed class S32GridRenderPanel : Panel
             $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}",
-            $"TileImage: enabled={_tileImageRenderEnabled}, limit={_tileImageDrawAttemptLimit:N0}, attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}");
+            $"TileImage: enabled={_tileImageRenderEnabled}, limit={_tileImageDrawAttemptLimit:N0}, attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}",
+            $"Viewport : visible={_lastVisibleTileCount:N0}, drawn={_lastDrawnTileCount:N0}, skipped={_lastSkippedTileCount:N0}");
     }
 
     public void ZoomIn()
@@ -145,8 +149,7 @@ public sealed class S32GridRenderPanel : Panel
         _layerSample = null;
         _hoverTile = null;
         _selectedTile = null;
-        _lastTileImageAttemptCount = 0;
-        _lastTileImageSuccessCount = 0;
+        ResetRenderCounters();
         _isoPanOffset = Point.Empty;
 
         if (mapInfo is not null)
@@ -167,8 +170,7 @@ public sealed class S32GridRenderPanel : Panel
     public void SetTileResource(TileResourceSet? tileResourceSet)
     {
         _tileResourceSet = tileResourceSet;
-        _lastTileImageAttemptCount = 0;
-        _lastTileImageSuccessCount = 0;
+        ResetRenderCounters();
         Invalidate();
     }
 
@@ -257,19 +259,21 @@ public sealed class S32GridRenderPanel : Panel
             return;
         }
 
+        var clipBounds = Rectangle.Ceiling(e.Graphics.VisibleClipBounds);
         if (_layerSample?.HasLayer1 == true)
         {
             if (_renderMode == S32RenderMode.IsoTile)
             {
-                DrawLayer1IsoTiles(e.Graphics, _layerSample);
+                DrawLayer1IsoTiles(e.Graphics, _layerSample, clipBounds);
             }
             else
             {
-                DrawLayer1ColorGrid(e.Graphics, _layerSample);
+                DrawLayer1ColorGrid(e.Graphics, _layerSample, clipBounds);
             }
         }
         else
         {
+            ResetRenderCounters();
             DrawIsoGrid(e.Graphics);
         }
 
@@ -330,7 +334,7 @@ public sealed class S32GridRenderPanel : Panel
         return menu;
     }
 
-    private void DrawLayer1ColorGrid(Graphics graphics, S32LayerSample sample)
+    private void DrawLayer1ColorGrid(Graphics graphics, S32LayerSample sample, Rectangle clipBounds)
     {
         var baseCellSize = Math.Max(3, Math.Min(8, Math.Min(Width / S32LayerSample.Width, Math.Max(1, (Height - 140) / S32LayerSample.Height))));
         var cellSize = Math.Max(2, (int)Math.Round(baseCellSize * _zoom));
@@ -341,8 +345,7 @@ public sealed class S32GridRenderPanel : Panel
 
         _lastCellSize = cellSize;
         _lastGridBounds = new Rectangle(startX, startY, gridWidth, gridHeight);
-        _lastTileImageAttemptCount = 0;
-        _lastTileImageSuccessCount = 0;
+        ResetRenderCounters();
 
         var canAttemptTileImages = _tileImageRenderEnabled && _tileResourceSet is not null && cellSize >= 8 && _tileImageDrawAttemptLimit > 0;
 
@@ -350,8 +353,15 @@ public sealed class S32GridRenderPanel : Panel
         {
             for (var x = 0; x < S32LayerSample.Width; x++)
             {
-                var tileId = sample.GetTileId(x, y);
                 var target = new Rectangle(startX + x * cellSize, startY + y * cellSize, cellSize, cellSize);
+                if (!clipBounds.IntersectsWith(target))
+                {
+                    _lastSkippedTileCount++;
+                    continue;
+                }
+
+                _lastVisibleTileCount++;
+                var tileId = sample.GetTileId(x, y);
                 var imageDrawn = false;
 
                 if (canAttemptTileImages && _lastTileImageAttemptCount < _tileImageDrawAttemptLimit)
@@ -364,6 +374,8 @@ public sealed class S32GridRenderPanel : Panel
                     using var brush = new SolidBrush(BuildTileColor(tileId));
                     graphics.FillRectangle(brush, target);
                 }
+
+                _lastDrawnTileCount++;
             }
         }
 
@@ -374,12 +386,11 @@ public sealed class S32GridRenderPanel : Panel
         DrawColorGridTileMarker(graphics, _selectedTile, Color.Yellow, 2);
     }
 
-    private void DrawLayer1IsoTiles(Graphics graphics, S32LayerSample sample)
+    private void DrawLayer1IsoTiles(Graphics graphics, S32LayerSample sample, Rectangle clipBounds)
     {
         _lastGridBounds = Rectangle.Empty;
         _lastCellSize = 0;
-        _lastTileImageAttemptCount = 0;
-        _lastTileImageSuccessCount = 0;
+        ResetRenderCounters();
 
         var options = CreateIsoLayoutOptions();
         var canAttemptTileImages = _tileImageRenderEnabled && _tileResourceSet is not null && _tileImageDrawAttemptLimit > 0;
@@ -389,8 +400,17 @@ public sealed class S32GridRenderPanel : Panel
         {
             for (var x = 0; x < S32LayerSample.Width; x++)
             {
-                var tileId = sample.GetTileId(x, y);
+                var diamond = S32IsoTileLayout.GetDiamond(x, y, options);
                 var target = S32IsoTileLayout.GetImageTarget(x, y, options);
+                var tileBounds = Rectangle.Union(GetPolygonBounds(diamond), target);
+                if (!clipBounds.IntersectsWith(tileBounds))
+                {
+                    _lastSkippedTileCount++;
+                    continue;
+                }
+
+                _lastVisibleTileCount++;
+                var tileId = sample.GetTileId(x, y);
                 var imageDrawn = false;
 
                 if (canAttemptTileImages && _lastTileImageAttemptCount < _tileImageDrawAttemptLimit)
@@ -400,11 +420,12 @@ public sealed class S32GridRenderPanel : Panel
 
                 if (!imageDrawn)
                 {
-                    var diamond = S32IsoTileLayout.GetDiamond(x, y, options);
                     using var brush = new SolidBrush(BuildTileColor(tileId));
                     graphics.FillPolygon(brush, diamond);
                     graphics.DrawPolygon(gridPen, diamond);
                 }
+
+                _lastDrawnTileCount++;
             }
         }
 
@@ -594,6 +615,7 @@ public sealed class S32GridRenderPanel : Panel
             $"Mode: {_renderMode}",
             $"Pan: x={_isoPanOffset.X}, y={_isoPanOffset.Y}",
             layerText,
+            $"Viewport: visible={_lastVisibleTileCount:N0}, drawn={_lastDrawnTileCount:N0}, skipped={_lastSkippedTileCount:N0}",
             $"Zoom: {_zoom:0.00}x",
             $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected: {FormatTile(_selectedTile, selectedTileId)}",
@@ -607,6 +629,29 @@ public sealed class S32GridRenderPanel : Panel
         {
             graphics.DrawString(lines[i], font, dimBrush, 12, 38 + i * 20);
         }
+    }
+
+    private void ResetRenderCounters()
+    {
+        _lastTileImageAttemptCount = 0;
+        _lastTileImageSuccessCount = 0;
+        _lastVisibleTileCount = 0;
+        _lastDrawnTileCount = 0;
+        _lastSkippedTileCount = 0;
+    }
+
+    private static Rectangle GetPolygonBounds(IReadOnlyList<Point> points)
+    {
+        if (points.Count == 0)
+        {
+            return Rectangle.Empty;
+        }
+
+        var left = points.Min(point => point.X);
+        var top = points.Min(point => point.Y);
+        var right = points.Max(point => point.X);
+        var bottom = points.Max(point => point.Y);
+        return Rectangle.FromLTRB(left, top, right, bottom);
     }
 
     private static string FormatTile(Point? point, ushort? tileId)
