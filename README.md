@@ -17,6 +17,7 @@
 - `IIdxParserStrategy` 기반 IDX parser registry
 - `IdxParseResult` 기반 상세 parse 결과 모델
 - `IdxLoadUiBinder` 기반 PAK 탭 UI 연결
+- `PakPreviewDiagnosticsPresenter` 기반 preview 진단 메시지 생성
 - IDX 로드 직후 Info 탭에 strategy / probe 여부 / message 표시
 - IDX 로드 직후 Log에 strategy / probeOnly / records / extractable 기록
 - probe-only/fallback 결과 안내 표시
@@ -144,6 +145,8 @@ viewer/
    │  ├─ IdxRecord.cs
    │  ├─ IdxParser.cs
    │  ├─ PakExtractor.cs
+   │  ├─ PakPreviewDiagnosticsPresenter.cs
+   │  ├─ PakRecordDiagnostics.cs
    │  ├─ PreviewHelper.cs
    │  ├─ SpecialResourceInfo.cs
    │  ├─ SpriteFrameDecoder.cs
