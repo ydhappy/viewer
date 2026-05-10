@@ -72,6 +72,12 @@ src/Viewer.App/Pak/PakExtractor.cs
 4. 실패 시 `Build Release` 단계의 첫 번째 compiler error부터 수정한다.
 5. 성공 시 `viewer-release-build` artifact 생성 여부를 확인한다.
 
+## PR 검증
+
+```text
+build-check-57 branch: pull_request trigger validation
+```
+
 ## 실패 처리 원칙
 
 - 여러 오류가 있어도 첫 번째 compiler error부터 수정한다.
