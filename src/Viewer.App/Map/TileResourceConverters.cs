@@ -43,6 +43,9 @@ public sealed class DirectImageTileResourceConverter : ITileResourceConverter
 
 public sealed class RawByteDiagnosticTileResourceConverter : ITileResourceConverter
 {
+    private const int MaxDiagnosticBytes = 1024 * 1024;
+    private const int MaxDiagnosticHeight = 512;
+
     public string Name => "RawByteDiagnostic";
 
     public bool CanConvert(TileConversionCandidate candidate, IdxRecord record)
@@ -55,6 +58,18 @@ public sealed class RawByteDiagnosticTileResourceConverter : ITileResourceConver
         if (!record.CanExtract)
         {
             return new TileConversionResult(tileId, record, candidate, false, null, Name, "레코드가 추출 가능 상태가 아닙니다.");
+        }
+
+        if (record.Size > MaxDiagnosticBytes)
+        {
+            return new TileConversionResult(
+                tileId,
+                record,
+                candidate,
+                false,
+                null,
+                Name,
+                $"Raw Byte 진단 이미지는 최대 {MaxDiagnosticBytes:N0} bytes까지만 허용합니다. 현재 리소스는 {record.Size:N0} bytes입니다.");
         }
 
         try
@@ -85,7 +100,7 @@ public sealed class RawByteDiagnosticTileResourceConverter : ITileResourceConver
     {
         var width = GuessWidth(data.Length);
         var height = Math.Max(1, (int)Math.Ceiling(data.Length / (double)width));
-        height = Math.Min(height, 512);
+        height = Math.Min(height, MaxDiagnosticHeight);
 
         var bitmap = new Bitmap(width, height);
         var max = Math.Min(data.Length, width * height);
