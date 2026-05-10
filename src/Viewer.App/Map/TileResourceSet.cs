@@ -8,7 +8,8 @@ public sealed record TileResourceSet(
     int TotalRecords,
     int ExtractableRecords,
     long IdxSize,
-    long PakSize
+    long PakSize,
+    IReadOnlyList<IdxRecord> Records
 )
 {
     public string ToDisplayText()
@@ -23,8 +24,27 @@ public sealed record TileResourceSet(
             $"Records     : {TotalRecords:N0}",
             $"Extractable : {ExtractableRecords:N0}",
             string.Empty,
-            "※ 7차에서는 Tile.idx 상태 연결까지만 처리합니다.",
-            "※ 실제 Tile 이미지 변환/캐시는 다음 렌더러 단계에서 연결합니다.");
+            "※ 12차에서는 Tile.idx 레코드 목록/검색과 캐시 연결 준비까지 처리합니다.",
+            "※ 실제 Tile 이미지 변환은 SPR/IMG/TIL 변환기 연결 후 처리합니다.");
+    }
+
+    public IdxRecord? FindByTileId(int tileId)
+    {
+        if (tileId <= 0 || Records.Count == 0)
+        {
+            return null;
+        }
+
+        var direct = Records.FirstOrDefault(record => record.Index == tileId);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        var asText = tileId.ToString();
+        return Records.FirstOrDefault(record =>
+            Path.GetFileNameWithoutExtension(record.FileName).Equals(asText, StringComparison.OrdinalIgnoreCase) ||
+            record.FileName.Contains(asText, StringComparison.OrdinalIgnoreCase));
     }
 
     public static TileResourceSet Load(string idxPath)
@@ -43,6 +63,7 @@ public sealed record TileResourceSet(
             TotalRecords: records.Count,
             ExtractableRecords: records.Count(r => r.CanExtract),
             IdxSize: new FileInfo(idxPath).Length,
-            PakSize: File.Exists(pakPath) ? new FileInfo(pakPath).Length : 0);
+            PakSize: File.Exists(pakPath) ? new FileInfo(pakPath).Length : 0,
+            Records: records);
     }
 }
