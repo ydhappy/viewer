@@ -113,6 +113,18 @@
 - `docs/KNOWN_ISSUES.md` 추가
 - 요구 환경, 실행 방법, 알려진 제한사항 정리
 
+## 12차 완료
+
+- `TileResourceSet`에 Tile 레코드 목록 보관 추가
+- Tile ID 기준 레코드 탐색 기능 추가
+- `ITileImageCache` / `NullTileImageCache` 추가
+- `TileRecordLookup` 추가
+- `TileResourcePanel` 추가
+- Map 탭의 Tile 페이지를 레코드 목록/검색 UI로 교체
+- Tile.idx 로드 시 최대 5,000개 레코드 표시
+- Tile ID 검색 및 레코드 상세 표시 추가
+- 실제 Tile 이미지 변환 실패 시 색상 그리드 fallback을 유지할 구조 마련
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -160,13 +172,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-12차에서는 실제 타일 이미지 렌더러 준비를 우선한다.
+13차에서는 실제 변환기 준비를 우선한다.
 
-- Tile.idx 레코드 목록을 Map 탭에서 조회
-- Tile ID 기준 Tile 레코드 탐색 기능 추가
-- Tile 이미지 캐시 인터페이스 추가
-- Tile 변환 실패 시 색상 그리드 fallback 유지
-- 이후 SPR/IMG/TIL 포맷 변환기 연결
+- Tile 레코드의 확장자/파일명 기반 변환 후보 분류
+- TIL/IMG/Spr 계열 변환기 인터페이스 추가
+- 변환 실패 사유를 Tile 패널에 표시
+- Tile ID 선택 시 캐시 조회/변환 시도 흐름 추가
+- 실제 이미지 변환 가능 포맷부터 순차 지원
 
 ## 주의사항
 
