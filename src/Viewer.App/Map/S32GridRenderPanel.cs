@@ -4,6 +4,7 @@ public sealed class S32GridRenderPanel : Panel
 {
     private S32Info? _currentMap;
     private TileResourceSet? _tileResourceSet;
+    private S32LayerSample? _layerSample;
 
     public S32GridRenderPanel()
     {
@@ -14,6 +15,20 @@ public sealed class S32GridRenderPanel : Panel
     public void SetMap(S32Info? mapInfo)
     {
         _currentMap = mapInfo;
+        _layerSample = null;
+
+        if (mapInfo is not null)
+        {
+            try
+            {
+                _layerSample = S32LayerParser.ParseLayer1Sample(mapInfo.FilePath);
+            }
+            catch
+            {
+                _layerSample = null;
+            }
+        }
+
         Invalidate();
     }
 
@@ -36,8 +51,51 @@ public sealed class S32GridRenderPanel : Panel
             return;
         }
 
-        DrawIsoGrid(e.Graphics);
+        if (_layerSample?.HasLayer1 == true)
+        {
+            DrawLayer1ColorGrid(e.Graphics, _layerSample);
+        }
+        else
+        {
+            DrawIsoGrid(e.Graphics);
+        }
+
         DrawOverlay(e.Graphics);
+    }
+
+    private void DrawLayer1ColorGrid(Graphics graphics, S32LayerSample sample)
+    {
+        var cellSize = Math.Max(3, Math.Min(8, Math.Min(Width / S32LayerSample.Width, Math.Max(1, (Height - 120) / S32LayerSample.Height))));
+        var gridWidth = S32LayerSample.Width * cellSize;
+        var gridHeight = S32LayerSample.Height * cellSize;
+        var startX = Math.Max(12, (Width - gridWidth) / 2);
+        var startY = 120;
+
+        for (var y = 0; y < S32LayerSample.Height; y++)
+        {
+            for (var x = 0; x < S32LayerSample.Width; x++)
+            {
+                var tileId = sample.GetTileId(x, y);
+                using var brush = new SolidBrush(BuildTileColor(tileId));
+                graphics.FillRectangle(brush, startX + x * cellSize, startY + y * cellSize, cellSize, cellSize);
+            }
+        }
+
+        using var borderPen = new Pen(Color.FromArgb(180, 220, 220, 220));
+        graphics.DrawRectangle(borderPen, startX, startY, gridWidth, gridHeight);
+    }
+
+    private static Color BuildTileColor(ushort tileId)
+    {
+        if (tileId == 0)
+        {
+            return Color.FromArgb(45, 45, 45);
+        }
+
+        var r = 40 + tileId * 37 % 180;
+        var g = 40 + tileId * 57 % 180;
+        var b = 40 + tileId * 83 % 180;
+        return Color.FromArgb(r, g, b);
     }
 
     private void DrawIsoGrid(Graphics graphics)
@@ -79,15 +137,20 @@ public sealed class S32GridRenderPanel : Panel
         using var font = new Font(FontFamily.GenericSansSerif, 10, FontStyle.Regular);
         using var titleFont = new Font(FontFamily.GenericSansSerif, 11, FontStyle.Bold);
 
+        var layerText = _layerSample?.HasLayer1 == true
+            ? $"Layer1 sample: {_layerSample.Count:N0} tile IDs / {_layerSample.BytesRead:N0} bytes"
+            : "Layer1 sample: unavailable";
+
         var lines = new List<string>
         {
             $"S32: {_currentMap!.FileName}",
             $"Coord: {(_currentMap.Coordinate is null ? "unknown" : _currentMap.Coordinate.ToString())}",
             $"Size: {_currentMap.FileSize:N0} bytes",
+            layerText,
             $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}"
         };
 
-        graphics.DrawString("임시 Iso Grid Render", titleFont, brush, 12, 12);
+        graphics.DrawString(_layerSample?.HasLayer1 == true ? "Layer1 Tile ID Color Grid" : "임시 Iso Grid Render", titleFont, brush, 12, 12);
         for (var i = 0; i < lines.Count; i++)
         {
             graphics.DrawString(lines[i], font, dimBrush, 12, 38 + i * 20);
