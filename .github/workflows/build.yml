@@ -16,6 +16,7 @@ jobs:
   windows-build:
     name: Windows .NET build
     runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -28,12 +29,24 @@ jobs:
 
       - name: Show .NET info
         shell: pwsh
-        run: dotnet --info
+        run: |
+          dotnet --info
+          dotnet --list-sdks
 
       - name: Restore
         shell: pwsh
-        run: dotnet restore .\Viewer.sln
+        run: dotnet restore .\Viewer.sln --verbosity minimal
 
       - name: Build Release
         shell: pwsh
-        run: dotnet build .\Viewer.sln -c Release --no-restore
+        run: dotnet build .\Viewer.sln -c Release --no-restore --verbosity minimal
+
+      - name: List build outputs
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path .\src\Viewer.App\bin) {
+            Get-ChildItem .\src\Viewer.App\bin -Recurse | Select-Object FullName, Length, LastWriteTime
+          } else {
+            Write-Host "No bin directory was created."
+          }
