@@ -162,6 +162,14 @@
 - 선택 레코드의 헤더/HEX/후보 분석 결과 표시
 - 실제 TIL/IMG/SPR 변환 전 포맷 분석 기반 마련
 
+## 16차 완료
+
+- `Viewer.App.csproj`의 Windows Forms / nullable / implicit usings 설정 확인
+- Tile 변환/진단 관련 생성자 변경 영향 확인
+- README에 Tile Resource 기능, 변환기, 진단 기능 반영
+- `KNOWN_ISSUES.md`에 Tile ID 매핑, 변환기 한계, 빌드 검증 제한사항 반영
+- 다음 실제 포맷 이식 전 문서 기준점 정리
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -209,12 +217,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-16차에서는 빌드 안정성 검토와 컴파일 오류 가능 구간을 정리한다.
+17차에서는 원본 PakViewer의 TIL/IMG/SPR 변환 관련 코드 분석과 1차 이식 후보 선정을 진행한다.
 
-- 전체 C# 파일 참조 관계 점검
-- Nullable/namespace/constructor 변경 영향 확인
-- README/KNOWN_ISSUES에 15차 기능 반영
-- 이후 원본 PakViewer의 TIL/IMG/SPR 변환 로직 분석/이식
+- PakViewer 리소스 변환 코드 위치 재탐색
+- TIL/IMG/SPR 중 가장 단순한 포맷부터 이식 후보 선정
+- 변환기 클래스에 실제 구현 가능한 최소 로직 반영
+- 실패 시 진단 메시지와 fallback 유지
 
 ## 주의사항
 
