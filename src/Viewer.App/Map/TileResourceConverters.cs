@@ -30,13 +30,59 @@ public sealed class DirectImageTileResourceConverter : ITileResourceConverter
         try
         {
             var data = PakExtractor.ReadBytes(tileResourceSet.PakPath, record);
-            using var stream = new MemoryStream(data);
-            using var image = Image.FromStream(stream);
-            return new TileConversionResult(tileId, record, candidate, true, new Bitmap(image), Name, "직접 이미지 변환 성공");
+            var image = ImageResourceDecoder.LoadBitmap(data);
+            return new TileConversionResult(tileId, record, candidate, true, image, Name, "직접 이미지 변환 성공");
         }
         catch (Exception ex)
         {
             return new TileConversionResult(tileId, record, candidate, false, null, Name, "직접 이미지 변환 실패: " + ex.Message);
+        }
+    }
+}
+
+public sealed class L1TilTileResourceConverter : ITileResourceConverter
+{
+    private const int MinTilBlockBytes = 2;
+    private const int MaxTilPreviewBytes = 1024 * 1024;
+
+    public string Name => "L1TIL";
+
+    public bool CanConvert(TileConversionCandidate candidate, IdxRecord record)
+    {
+        return candidate.Kind == TileResourceKind.Tile;
+    }
+
+    public TileConversionResult Convert(int tileId, TileResourceSet tileResourceSet, IdxRecord record, TileConversionCandidate candidate)
+    {
+        if (!record.CanExtract)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "레코드가 추출 가능 상태가 아닙니다.");
+        }
+
+        if (record.Size < MinTilBlockBytes)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "TIL block 후보 데이터가 너무 작습니다.");
+        }
+
+        if (record.Size > MaxTilPreviewBytes)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, $"TIL preview는 최대 {MaxTilPreviewBytes:N0} bytes까지만 시도합니다. 현재 리소스는 {record.Size:N0} bytes입니다.");
+        }
+
+        try
+        {
+            var data = PakExtractor.ReadBytes(tileResourceSet.PakPath, record);
+            if (data.Length < MinTilBlockBytes)
+            {
+                return new TileConversionResult(tileId, record, candidate, false, null, Name, "TIL block 후보 데이터가 비어 있습니다.");
+            }
+
+            var image = L1ImageFormatDecoder.RenderTilBlock(data);
+            return new TileConversionResult(tileId, record, candidate, true, image, Name, "L1 TIL 24x24 block preview 생성 성공. 전체 TIL parser 전 단계의 첫 block 후보 렌더링입니다.");
+        }
+        catch (Exception ex)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "L1 TIL block preview 실패: " + ex.Message);
         }
     }
 }
@@ -201,6 +247,7 @@ public sealed class TileResourceConverterRegistry
         return new TileResourceConverterRegistry(new ITileResourceConverter[]
         {
             new DirectImageTileResourceConverter(),
+            new L1TilTileResourceConverter(),
             new RawByteDiagnosticTileResourceConverter(),
             new PlaceholderTileResourceConverter(TileResourceKind.Sprite, "SPR", "SPR 변환기는 아직 구현되지 않았습니다. list.spr/프레임 구조 연동이 필요합니다."),
             new PlaceholderTileResourceConverter(TileResourceKind.TileTable, "TBT", "TBT는 이미지가 아닌 타일 테이블 후보입니다. 별도 메타데이터 파서가 필요합니다."),
