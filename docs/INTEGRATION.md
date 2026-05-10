@@ -44,6 +44,16 @@
 - PAK 탭을 좌측 목록 / 우측 Preview 패널 구조로 개편
 - Preview 패널에 Text/Hex, Image, Info 탭 추가
 
+## 5차 완료
+
+- `SpecialResourceInfo` 추가
+- `SpecialResourceAnalyzer` 추가
+- `.spr`, `.img`, `.til`, `.tbt` 확장자 감지 추가
+- `PreviewKind.Special` 추가
+- Preview 패널에 `Special` 탭 추가
+- 전용 리소스 선택 시 종류, 확장자, 크기, 헤더 HEX 정보 표시
+- SPR/IMG/TIL/TBT 렌더링 연결을 위한 자리 구성
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -91,13 +101,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-5차에서는 SPR/IMG/TIL 계열 리소스를 위한 전용 뷰어 준비를 우선한다.
+6차에서는 S32 지도 쪽 기능을 우선한다.
 
-- `.spr`, `.img`, `.til`, `.tbt` 확장자 감지
-- 전용 Preview 탭 자리 구성
-- 원본 PakViewer의 Sprite 관련 데이터 흐름 분석
-- 이미지 변환 가능 포맷부터 순차 지원
-- 추후 list.spr 연동 준비
+- S32 파일명에서 좌표 추정
+- 지도 폴더 내 S32 목록 테이블화
+- 파일 크기 기준 레이어 후보 분석
+- 지도 Preview 패널 분리
+- 이후 Tile.idx 연동 렌더러 준비
 
 ## 주의사항
 
