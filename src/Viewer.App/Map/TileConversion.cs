@@ -34,12 +34,13 @@ public sealed record TileConversionResult(
     TileConversionCandidate Candidate,
     bool Success,
     Image? Image,
+    string ConverterName,
     string Message
 )
 {
     public static TileConversionResult NotFound(int tileId, string message)
     {
-        return new TileConversionResult(tileId, null, TileConversionCandidate.Unknown, false, null, message);
+        return new TileConversionResult(tileId, null, TileConversionCandidate.Unknown, false, null, "none", message);
     }
 
     public string ToDisplayText()
@@ -49,9 +50,10 @@ public sealed record TileConversionResult(
             return string.Join(Environment.NewLine,
                 "Tile Conversion",
                 "===============",
-                $"Tile ID : {TileId}",
-                "Record  : not found",
-                $"Result  : {Message}");
+                $"Tile ID   : {TileId}",
+                "Record    : not found",
+                $"Converter : {ConverterName}",
+                $"Result    : {Message}");
         }
 
         return string.Join(Environment.NewLine,
@@ -67,6 +69,7 @@ public sealed record TileConversionResult(
             $"Kind        : {Candidate.Kind}",
             $"Extension   : {Candidate.Extension}",
             $"Candidate   : {Candidate.Description}",
+            $"Converter   : {ConverterName}",
             $"Image       : {(Success ? "available" : "unavailable")}",
             $"Result      : {Message}");
     }
@@ -121,6 +124,7 @@ public static class TileResourceClassifier
 public sealed class DefaultTileImageCache : ITileImageCache
 {
     private readonly Dictionary<int, TileConversionResult> _results = new();
+    private readonly TileResourceConverterRegistry _registry = TileResourceConverterRegistry.CreateDefault();
 
     public TileConversionResult GetTileImage(int tileId, TileResourceSet tileResourceSet)
     {
@@ -134,7 +138,12 @@ public sealed class DefaultTileImageCache : ITileImageCache
         return result;
     }
 
-    private static TileConversionResult ConvertTile(int tileId, TileResourceSet tileResourceSet)
+    public string GetConverterListText()
+    {
+        return _registry.ToDisplayText();
+    }
+
+    private TileConversionResult ConvertTile(int tileId, TileResourceSet tileResourceSet)
     {
         var record = tileResourceSet.FindByTileId(tileId);
         if (record is null)
@@ -143,26 +152,7 @@ public sealed class DefaultTileImageCache : ITileImageCache
         }
 
         var candidate = TileResourceClassifier.Classify(record);
-        if (!record.CanExtract)
-        {
-            return new TileConversionResult(tileId, record, candidate, false, null, "레코드가 추출 가능 상태가 아닙니다.");
-        }
-
-        if (!candidate.CanAttemptDirectImage)
-        {
-            return new TileConversionResult(tileId, record, candidate, false, null, candidate.Description);
-        }
-
-        try
-        {
-            var data = PakExtractor.ReadBytes(tileResourceSet.PakPath, record);
-            using var stream = new MemoryStream(data);
-            using var image = Image.FromStream(stream);
-            return new TileConversionResult(tileId, record, candidate, true, new Bitmap(image), "직접 이미지 변환 성공");
-        }
-        catch (Exception ex)
-        {
-            return new TileConversionResult(tileId, record, candidate, false, null, "직접 이미지 변환 실패: " + ex.Message);
-        }
+        var converter = _registry.Select(candidate, record);
+        return converter.Convert(tileId, tileResourceSet, record, candidate);
     }
 }
