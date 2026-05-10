@@ -170,6 +170,15 @@
 - `KNOWN_ISSUES.md`에 Tile ID 매핑, 변환기 한계, 빌드 검증 제한사항 반영
 - 다음 실제 포맷 이식 전 문서 기준점 정리
 
+## 17차 완료
+
+- 원본 PakViewer의 리소스 처리 흐름을 `frmMain.cs` 중심으로 재확인
+- TIL/IMG는 실제 포맷 변환 전 단계로 Raw Byte 진단 이미지 변환기를 우선 추가
+- `RawByteDiagnosticTileResourceConverter` 추가
+- TIL/IMG 후보 선택 시 회색조 데이터 패턴 이미지 생성
+- 실제 렌더링이 아닌 진단 이미지임을 결과 메시지와 Known Issues에 명확히 표시
+- TIL/IMG 변환 실패 시 기존 진단/HEX/fallback 흐름 유지
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -217,12 +226,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-17차에서는 원본 PakViewer의 TIL/IMG/SPR 변환 관련 코드 분석과 1차 이식 후보 선정을 진행한다.
+18차에서는 실제 포맷 이식 전 안정성을 더 높인다.
 
-- PakViewer 리소스 변환 코드 위치 재탐색
-- TIL/IMG/SPR 중 가장 단순한 포맷부터 이식 후보 선정
-- 변환기 클래스에 실제 구현 가능한 최소 로직 반영
-- 실패 시 진단 메시지와 fallback 유지
+- RawByteDiagnostic 변환기 성능 보강
+- 대용량 리소스 변환 제한 추가
+- 변환 결과 이미지 저장 기능 추가
+- Tile 패널에서 변환 결과 이미지 저장/복사 기능 추가
+- 이후 원본 PakViewer의 SPR/list.spr 흐름을 별도 모듈로 흡수
 
 ## 주의사항
 
