@@ -95,6 +95,15 @@
 - 클릭한 Tile 좌표/Tile ID 선택 표시
 - Hover Tile은 흰색 테두리, Selected Tile은 노란색 테두리로 표시
 
+## 10차 완료
+
+- Render 화면 PNG 저장 기능 추가
+- 현재 Hover/Selected Tile 정보 클립보드 복사 기능 추가
+- S32 분석 결과 텍스트 저장 기능 추가
+- 지도 폴더 스캔 결과 CSV 저장 기능 추가
+- CSV UTF-8 저장 및 기본 escape 처리 추가
+- Render 패널 스냅샷/선택 Tile 정보 API 추가
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -142,12 +151,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-10차에서는 렌더링 내보내기와 검증 편의 기능을 보강한다.
+11차에서는 안정화와 빌드 편의 기능을 보강한다.
 
-- Render 화면 PNG 저장
-- 현재 선택 Tile 정보 복사
-- S32 분석 결과 텍스트 저장
-- 지도 폴더 스캔 결과 CSV 저장
+- 프로젝트 솔루션 파일 추가
+- 빌드/실행 스크립트 추가
+- README 실행 방법 갱신
+- known issues 정리
 - 이후 Tile 이미지 캐시/실제 타일 렌더러 연결
 
 ## 주의사항
