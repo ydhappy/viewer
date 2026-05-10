@@ -2,6 +2,8 @@ namespace Viewer.App.Pak;
 
 public static class PakPreviewDiagnosticsPresenter
 {
+    private const int MaxLogErrorLength = 240;
+
     public static string BuildInitialInfo(IdxRecord record, string? currentIdxPath)
     {
         var pakPath = ResolvePakPathOrNull(currentIdxPath);
@@ -33,7 +35,8 @@ public static class PakPreviewDiagnosticsPresenter
 
     public static string BuildPreviewFailureLog(IdxRecord record, Exception exception)
     {
-        return $"Preview failed: {record.FileName} - compression={record.Compression}, packed={record.CompressedSize?.ToString() ?? "-"}, error={exception.Message}";
+        var error = BuildCompactExceptionMessage(exception);
+        return $"Preview failed: {record.FileName} - compression={record.Compression}, packed={record.CompressedSize?.ToString() ?? "-"}, error={error}";
     }
 
     public static string? ResolvePakPathOrNull(string? currentIdxPath)
@@ -54,5 +57,22 @@ public static class PakPreviewDiagnosticsPresenter
         }
 
         return new FileInfo(pakPath).Length;
+    }
+
+    private static string BuildCompactExceptionMessage(Exception exception)
+    {
+        var line = exception.Message
+            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault()
+            ?.Trim();
+
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            line = exception.GetType().Name;
+        }
+
+        return line.Length <= MaxLogErrorLength
+            ? line
+            : line[..MaxLogErrorLength] + "...";
     }
 }
