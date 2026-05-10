@@ -41,12 +41,14 @@ public sealed class MainForm : Form
         var importSameSizeButton = new Button { Text = "같은크기 교체", AutoSize = true, Enabled = false };
         var backupPakButton = new Button { Text = "PAK 백업", AutoSize = true, Enabled = false };
         var restorePakButton = new Button { Text = "백업복원", AutoSize = true, Enabled = false };
+        var deleteRebuildButton = new Button { Text = "선택 삭제빌드", AutoSize = true, Enabled = false };
         toolbar.Controls.Add(openIdxButton);
         toolbar.Controls.Add(openSpriteListButton);
         toolbar.Controls.Add(exportButton);
         toolbar.Controls.Add(importSameSizeButton);
         toolbar.Controls.Add(backupPakButton);
         toolbar.Controls.Add(restorePakButton);
+        toolbar.Controls.Add(deleteRebuildButton);
 
         var list = CreatePakListView();
         var previewTabs = new TabControl { Dock = DockStyle.Fill };
@@ -67,6 +69,7 @@ public sealed class MainForm : Form
         {
             exportButton.Enabled = list.SelectedItems.Cast<ListViewItem>().Any(item => item.Tag is Pak.IdxRecord { CanExtract: true }) && !string.IsNullOrEmpty(_currentIdxPath);
             importSameSizeButton.Enabled = CanImportSameSize(list);
+            deleteRebuildButton.Enabled = !string.IsNullOrEmpty(_currentIdxPath) && list.SelectedItems.Cast<ListViewItem>().Any(item => item.Tag is Pak.IdxRecord { CanExtract: true });
             if (list.SelectedItems.Count == 1 && list.SelectedItems[0].Tag is Pak.IdxRecord record)
             {
                 ShowPakPreview(record, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
@@ -81,12 +84,13 @@ public sealed class MainForm : Form
             }
         };
 
-        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton, importSameSizeButton, backupPakButton, restorePakButton);
+        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton, importSameSizeButton, backupPakButton, restorePakButton, deleteRebuildButton);
         openSpriteListButton.Click += (_, _) => LoadSpriteList(previewTabs, specialPreview);
         exportButton.Click += (_, _) => ExportSelectedPakRecords(list);
         importSameSizeButton.Click += (_, _) => ImportSameSizeSelectedPakRecord(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
         backupPakButton.Click += (_, _) => BackupCurrentPak();
         restorePakButton.Click += (_, _) => RestoreCurrentPakBackup(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
+        deleteRebuildButton.Click += (_, _) => DeleteRebuildSelectedPakRecords(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
 
         layout.Controls.Add(toolbar, 0, 0);
         layout.Controls.Add(split, 0, 1);
@@ -111,7 +115,7 @@ public sealed class MainForm : Form
         return new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Font = new Font(FontFamily.GenericMonospace, 10) };
     }
 
-    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton, Button importSameSizeButton, Button backupPakButton, Button restorePakButton)
+    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton, Button importSameSizeButton, Button backupPakButton, Button restorePakButton, Button deleteRebuildButton)
     {
         using var dialog = new OpenFileDialog { Title = "IDX 파일 선택", Filter = "IDX files (*.idx)|*.idx|All files (*.*)|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
@@ -132,6 +136,7 @@ public sealed class MainForm : Form
             importSameSizeButton.Enabled = false;
             backupPakButton.Enabled = File.Exists(Pak.PakExtractor.ResolvePakPath(_currentIdxPath));
             restorePakButton.Enabled = backupPakButton.Enabled;
+            deleteRebuildButton.Enabled = false;
             infoPreview.Text = state.InfoText;
             previewTabs.SelectedIndex = 3;
             WriteLog(state.LogText);
@@ -145,6 +150,7 @@ public sealed class MainForm : Form
         {
             backupPakButton.Enabled = false;
             restorePakButton.Enabled = false;
+            deleteRebuildButton.Enabled = false;
             MessageBox.Show(this, ex.Message, "IDX load failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             WriteLog("IDX load failed: " + ex.Message);
         }
@@ -280,6 +286,66 @@ public sealed class MainForm : Form
         {
             WriteLog("PAK restore failed: " + ex.Message);
             MessageBox.Show(this, ex.Message, "백업복원 실패", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void DeleteRebuildSelectedPakRecords(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview)
+    {
+        if (string.IsNullOrEmpty(_currentIdxPath) || list.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var selectedRecords = list.SelectedItems
+            .Cast<ListViewItem>()
+            .Select(item => item.Tag)
+            .OfType<Pak.IdxRecord>()
+            .ToList();
+
+        if (selectedRecords.Count == 0)
+        {
+            return;
+        }
+
+        var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+        var plan = Pak.PakDeletePlanner.BuildPlan(pakPath, selectedRecords);
+        if (plan.DeleteCount <= 0)
+        {
+            ClearImage(imagePreview);
+            textPreview.Clear();
+            specialPreview.Text = plan.ToDisplayText();
+            infoPreview.Text = "삭제 가능한 안전 후보가 없습니다.";
+            previewTabs.SelectedIndex = 2;
+            MessageBox.Show(this, "삭제 가능한 안전 후보가 없습니다. Special 탭의 계획 내용을 확인하세요.", "선택 삭제빌드", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            this,
+            $"선택한 record를 제외한 rebuilt 파일을 생성합니다.\n\n삭제 후보: {plan.DeleteCount:N0}\n건너뜀: {plan.SkipCount:N0}\n감소 예상: {plan.DeleteBytes:N0} bytes\n\n원본 PAK/IDX는 변경하지 않습니다.\n생성 파일: .rebuilt.pak / .rebuilt.idx\n\n계속할까요?",
+            "선택 삭제빌드 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (confirm != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = Pak.PakDeleteRebuildService.RebuildWithoutSelectedRecords(_currentIdxPath, _currentPakRecords, selectedRecords, overwriteOutputs: false);
+            ClearImage(imagePreview);
+            textPreview.Clear();
+            specialPreview.Text = result.ToDisplayText();
+            infoPreview.Text = result.ToDisplayText();
+            previewTabs.SelectedIndex = 2;
+            WriteLog($"Delete rebuild completed: success={result.Success}, pak={result.RebuildResult.OutputPakPath}, idx={result.IdxWriteResult.OutputIdxPath}");
+            MessageBox.Show(this, result.ToDisplayText(), "선택 삭제빌드", MessageBoxButtons.OK, result.Success ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+        catch (Exception ex)
+        {
+            WriteLog("Delete rebuild failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "선택 삭제빌드 실패", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
