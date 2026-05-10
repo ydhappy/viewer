@@ -1,3 +1,5 @@
+using System.IO.Compression;
+
 namespace Viewer.App.Pak;
 
 public static class PakExtractor
@@ -45,15 +47,28 @@ public static class PakExtractor
         }
 
         using var input = new FileStream(pakPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        if (record.Offset + record.Size > input.Length)
+        var bytesToRead = record.Compression == 0 ? record.Size : record.CompressedSize.GetValueOrDefault();
+        if (bytesToRead <= 0)
+        {
+            throw new InvalidOperationException("압축 레코드의 읽기 크기를 계산할 수 없습니다.");
+        }
+
+        if (record.Offset + bytesToRead > input.Length)
         {
             throw new InvalidOperationException("레코드 범위가 PAK 파일 크기를 초과합니다.");
         }
 
         input.Seek(record.Offset, SeekOrigin.Begin);
-        var data = new byte[record.Size];
+        var data = new byte[bytesToRead];
         ReadExactly(input, data);
-        return data;
+
+        return record.Compression switch
+        {
+            0 => TrimUncompressed(data, record.Size),
+            1 => DecompressZlib(data, record.Size),
+            2 => DecompressBrotli(data, record.Size),
+            _ => throw new NotSupportedException($"지원하지 않는 ExtB compression type입니다: {record.Compression}")
+        };
     }
 
     public static string Extract(string pakPath, IdxRecord record, string outputDirectory)
@@ -71,6 +86,40 @@ public static class PakExtractor
         var data = ReadBytes(pakPath, record);
         File.WriteAllBytes(outputPath, data);
         return outputPath;
+    }
+
+    private static byte[] TrimUncompressed(byte[] data, int expectedSize)
+    {
+        if (expectedSize > 0 && data.Length > expectedSize)
+        {
+            var trimmed = new byte[expectedSize];
+            Array.Copy(data, trimmed, expectedSize);
+            return trimmed;
+        }
+
+        return data;
+    }
+
+    private static byte[] DecompressZlib(byte[] data, int expectedSize)
+    {
+        using var input = new MemoryStream(data);
+        using var zlib = new ZLibStream(input, CompressionMode.Decompress);
+        return CopyDecompressed(zlib, expectedSize);
+    }
+
+    private static byte[] DecompressBrotli(byte[] data, int expectedSize)
+    {
+        using var input = new MemoryStream(data);
+        using var brotli = new BrotliStream(input, CompressionMode.Decompress);
+        return CopyDecompressed(brotli, expectedSize);
+    }
+
+    private static byte[] CopyDecompressed(Stream input, int expectedSize)
+    {
+        using var output = expectedSize > 0 ? new MemoryStream(expectedSize) : new MemoryStream();
+        input.CopyTo(output);
+        var result = output.ToArray();
+        return TrimUncompressed(result, expectedSize);
     }
 
     private static string MakeSafeRelativePath(string fileName)
