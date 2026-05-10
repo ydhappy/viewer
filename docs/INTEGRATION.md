@@ -200,6 +200,18 @@
 - `.spr` 리소스 선택 시 Special 탭에 list.spr 매핑 정보 표시
 - 실제 SPR 렌더러 이식 전 Sprite 그룹/액션/프레임 데이터 흐름 구성
 
+## 20차 완료
+
+- `SpriteResourcePanel` 추가
+- Sprite 전용 탭 추가
+- list.spr entry 전용 ListView 추가
+- Sprite ID / 이름 / 그룹 / 액션 검색 기능 추가
+- 선택한 list.spr entry와 PAK `.spr` record 역매핑 표시
+- SPR renderer placeholder 패널 추가
+- IDX 로드 시 Sprite 패널에 PAK 레코드 전달
+- list.spr 로드 시 Sprite 패널에 catalog 전달
+- 실제 SPR 프레임 디코더 이식 전 전용 UI 흐름 구성
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -247,13 +259,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-20차에서는 Sprite 전용 탭/패널을 분리한다.
+21차에서는 SPR 디코더 이식 전 진단 기능을 보강한다.
 
-- Sprite 목록 전용 ListView 추가
-- list.spr entry 검색/필터 추가
-- 선택한 entry와 PAK SPR record 역매핑 표시
-- SPR 렌더러 placeholder 패널 추가
-- 이후 실제 SPR 프레임 디코더 이식
+- SPR 선택 entry의 리소스 바이트 HEX preview 추가
+- Sprite 패널에서 매핑된 `.spr` 추출 기능 추가
+- Sprite 패널에서 매핑 정보 TXT 저장 추가
+- 실제 SPR 프레임 디코더 이식 전 검증 편의 기능 구성
 
 ## 주의사항
 
