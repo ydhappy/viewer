@@ -21,11 +21,14 @@
 - IDX 로드 직후 Log에 strategy / probeOnly / records / extractable 기록
 - probe-only/fallback 결과 안내 표시
 - classic 28-byte IDX 후보 파싱
-- `_EXTB$` 확장 IDX 실제 skeleton parser
+- `_EXTB$` 확장 IDX parser
 - `_EXTB$` 구조: 16-byte header + 128-byte entries 후보 지원
-- `_EXTB$` entry 후보: filename 8~119, PAK offset 120, size 124
-- `_EXTB$` 무압축 entry는 추출 가능 후보로 표시
-- `_EXTB$` 압축 entry는 아직 추출 불가 후보로 표시
+- `_EXTB$` entry 후보: filename 8~119, PAK offset 120, uncompressed size 124
+- `_EXTB$` offset 정렬 기반 compressed size 계산
+- `_EXTB$` compression metadata 저장
+- `_EXTB$` compression 0 raw read 지원
+- `_EXTB$` compression 1 zlib 해제 후보 지원
+- `_EXTB$` compression 2 brotli 해제 후보 지원
 - fallback binary/text 후보 파싱
 - PAK/PAK 대소문자 자동 탐색
 - 추출 가능 레코드 표시
@@ -172,7 +175,7 @@ viewer/
 ## 다음 개발 방향
 
 1. 보호/암호화 IDX 처리
-2. `_EXTB$` 압축 entry 해제 및 실제 크기 계산
+2. `_EXTB$` 압축 entry 실데이터 검증
 3. TIL/IMG 실제 이미지 변환
 4. SPR 실제 프레임 디코더/팔레트/방향별 렌더링
 5. Tile.idx 기반 실제 타일 이미지 캐시
