@@ -22,7 +22,7 @@ tony1223/L1MapViewer
 ## Current Branch
 
 ```text
-absorb-100-phase-1
+absorb-pak-editing-phase-2
 ```
 
 ## Sections
@@ -52,11 +52,12 @@ D. Build validation
 ### A2. PAK Editing
 
 - [ ] Add file
-- [ ] Update file
+- [x] Update file: same-size raw import service and UI
 - [ ] Delete file
-- [ ] Same-size import
+- [x] Same-size import
 - [ ] Rebuild PAK
-- [ ] Backup / rollback
+- [x] Backup / rollback core service
+- [ ] Backup / rollback UI
 - [ ] Write diagnostics
 
 ### A3. Text / Encoding
@@ -203,5 +204,6 @@ D. Build validation
 ## Next work target
 
 ```text
-Start A1/A2 implementation in small commits.
+A2 Backup / rollback UI
+A2 Delete file safe tombstone/rebuild design
 ```
