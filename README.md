@@ -40,6 +40,18 @@
 - S32 분석 TXT 저장
 - 지도 스캔 CSV 저장
 
+### Tile Resource
+
+- Tile.idx 레코드 목록 표시
+- Tile ID 검색
+- Tile 레코드 상세 정보 표시
+- 확장자 기반 변환 후보 분류
+- DirectImage/TIL/IMG/SPR/TBT/Text 변환기 등록 구조
+- PNG/BMP/JPG/JPEG/GIF 직접 이미지 변환 및 미리보기
+- TIL/IMG/SPR/TBT 변환기 placeholder 및 실패 사유 표시
+- 선택 리소스 헤더/HEX 진단
+- 등록 변환기 목록 표시
+
 ## 요구 환경
 
 - Windows
@@ -94,12 +106,17 @@ viewer/
    │  ├─ PreviewHelper.cs
    │  └─ SpecialResourceInfo.cs
    └─ Map/
+      ├─ ITileImageCache.cs
       ├─ S32Analyzer.cs
       ├─ S32Coordinate.cs
       ├─ S32GridRenderPanel.cs
       ├─ S32Info.cs
       ├─ S32LayerParser.cs
       ├─ S32LayerSample.cs
+      ├─ TileConversion.cs
+      ├─ TileResourceConverters.cs
+      ├─ TileResourceDiagnostics.cs
+      ├─ TileResourcePanel.cs
       └─ TileResourceSet.cs
 ```
 
@@ -112,7 +129,7 @@ viewer/
 
 1. 보호/암호화 IDX 처리
 2. `_EXTB$` 확장 IDX 처리
-3. SPR/IMG/TIL 실제 이미지 변환
+3. TIL/IMG/SPR 실제 이미지 변환
 4. Tile.idx 기반 실제 타일 이미지 캐시
 5. S32 Layer2/3/4/5/7 파서 보강
 6. 실제 타일 기반 지도 렌더링
