@@ -48,6 +48,13 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(openIdxButton);
         toolbar.Controls.Add(exportButton);
 
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            SplitterDistance = 680
+        };
+
         var list = new ListView
         {
             Dock = DockStyle.Fill,
@@ -63,12 +70,55 @@ public sealed class MainForm : Form
         list.Columns.Add("Extract", 80, HorizontalAlignment.Center);
         list.Columns.Add("Format", 110, HorizontalAlignment.Left);
 
+        var previewTabs = new TabControl { Dock = DockStyle.Fill };
+        var textPreview = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font(FontFamily.GenericMonospace, 10)
+        };
+        var imagePreview = new PictureBox
+        {
+            Dock = DockStyle.Fill,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.Black
+        };
+        var infoPreview = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font(FontFamily.GenericMonospace, 10)
+        };
+
+        previewTabs.TabPages.Add(new TabPage("Text / Hex") { Controls = { textPreview } });
+        previewTabs.TabPages.Add(new TabPage("Image") { Controls = { imagePreview } });
+        previewTabs.TabPages.Add(new TabPage("Info") { Controls = { infoPreview } });
+
+        split.Panel1.Controls.Add(list);
+        split.Panel2.Controls.Add(previewTabs);
+
         list.SelectedIndexChanged += (_, _) =>
         {
             exportButton.Enabled = list.SelectedItems
                 .Cast<ListViewItem>()
                 .Any(item => item.Tag is Pak.IdxRecord { CanExtract: true })
                 && !string.IsNullOrEmpty(_currentIdxPath);
+
+            if (list.SelectedItems.Count == 1 && list.SelectedItems[0].Tag is Pak.IdxRecord selectedRecord)
+            {
+                ShowPakPreview(selectedRecord, previewTabs, textPreview, imagePreview, infoPreview);
+            }
+            else if (list.SelectedItems.Count > 1)
+            {
+                ClearImage(imagePreview);
+                textPreview.Text = "여러 항목이 선택되었습니다. 미리보기는 단일 선택에서만 표시됩니다.";
+                infoPreview.Text = $"Selected: {list.SelectedItems.Count:N0}";
+                previewTabs.SelectedIndex = 2;
+            }
         };
 
         openIdxButton.Click += (_, _) =>
@@ -87,6 +137,10 @@ public sealed class MainForm : Form
             try
             {
                 list.Items.Clear();
+                ClearImage(imagePreview);
+                textPreview.Clear();
+                infoPreview.Clear();
+
                 _currentIdxPath = dialog.FileName;
                 _currentPakRecords = Pak.IdxParser.Parse(dialog.FileName);
 
@@ -169,9 +223,69 @@ public sealed class MainForm : Form
         };
 
         layout.Controls.Add(toolbar, 0, 0);
-        layout.Controls.Add(list, 0, 1);
+        layout.Controls.Add(split, 0, 1);
         page.Controls.Add(layout);
         return page;
+    }
+
+    private void ShowPakPreview(Pak.IdxRecord record, TabControl tabs, TextBox textPreview, PictureBox imagePreview, TextBox infoPreview)
+    {
+        ClearImage(imagePreview);
+        textPreview.Clear();
+        infoPreview.Text = string.Join(Environment.NewLine,
+            $"FileName : {record.FileName}",
+            $"Size     : {record.Size:N0}",
+            $"Offset   : {record.Offset:N0}",
+            $"Format   : {record.Format}",
+            $"Extract  : {(record.CanExtract ? "YES" : "NO")}");
+
+        if (string.IsNullOrEmpty(_currentIdxPath) || !record.CanExtract)
+        {
+            textPreview.Text = "추출/미리보기 가능한 레코드가 아닙니다.";
+            tabs.SelectedIndex = 2;
+            return;
+        }
+
+        try
+        {
+            var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+            var data = Pak.PakExtractor.ReadBytes(pakPath, record);
+            var kind = Pak.PreviewHelper.DetectKind(record.FileName, data);
+            infoPreview.AppendText(Environment.NewLine + $"Preview  : {kind}" + Environment.NewLine + $"PakPath  : {pakPath}");
+
+            switch (kind)
+            {
+                case Pak.PreviewKind.Text:
+                    textPreview.Text = Pak.PreviewHelper.DecodeText(data);
+                    tabs.SelectedIndex = 0;
+                    break;
+                case Pak.PreviewKind.Image:
+                    imagePreview.Image = Pak.PreviewHelper.LoadImage(data);
+                    tabs.SelectedIndex = 1;
+                    break;
+                case Pak.PreviewKind.Hex:
+                    textPreview.Text = Pak.PreviewHelper.ToHexPreview(data);
+                    tabs.SelectedIndex = 0;
+                    break;
+                default:
+                    textPreview.Text = "지원하지 않는 미리보기 형식입니다. 추출 후 외부 도구로 확인하세요.";
+                    tabs.SelectedIndex = 2;
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            textPreview.Text = ex.Message;
+            infoPreview.AppendText(Environment.NewLine + "Preview error: " + ex.Message);
+            tabs.SelectedIndex = 2;
+        }
+    }
+
+    private static void ClearImage(PictureBox pictureBox)
+    {
+        var oldImage = pictureBox.Image;
+        pictureBox.Image = null;
+        oldImage?.Dispose();
     }
 
     private TabPage CreateMapPage()
