@@ -32,6 +32,18 @@
 - 추출 가능한 레코드가 선택된 경우에만 `선택 추출` 활성화
 - 추출 불가 레코드는 건너뛰고 로그 기록
 
+## 4차 완료
+
+- `PakExtractor.ReadBytes` 추가
+- 선택 레코드를 추출 없이 메모리로 읽는 구조 추가
+- `PreviewHelper` 추가
+- 확장자/시그니처 기반 PreviewKind 판별
+- 텍스트 미리보기 추가
+- PNG/BMP/JPG/GIF 이미지 미리보기 추가
+- 작은 바이너리 파일용 HEX 미리보기 추가
+- PAK 탭을 좌측 목록 / 우측 Preview 패널 구조로 개편
+- Preview 패널에 Text/Hex, Image, Info 탭 추가
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -79,13 +91,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-4차에서는 PAK 리소스 미리보기를 우선한다.
+5차에서는 SPR/IMG/TIL 계열 리소스를 위한 전용 뷰어 준비를 우선한다.
 
-- 선택 레코드 추출 없이 메모리 로드
-- 텍스트 파일 미리보기
-- 이미지 파일 미리보기 준비
-- 확장자 기반 Preview 패널 분기
-- SPR/IMG/TIL 뷰어 연결 준비
+- `.spr`, `.img`, `.til`, `.tbt` 확장자 감지
+- 전용 Preview 탭 자리 구성
+- 원본 PakViewer의 Sprite 관련 데이터 흐름 분석
+- 이미지 변환 가능 포맷부터 순차 지원
+- 추후 list.spr 연동 준비
 
 ## 주의사항
 
