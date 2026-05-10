@@ -6,5 +6,7 @@ public sealed record IdxRecord(
     int Size,
     int Offset,
     bool CanExtract = false,
-    string Format = "unknown"
+    string Format = "unknown",
+    int Compression = 0,
+    int? CompressedSize = null
 );
