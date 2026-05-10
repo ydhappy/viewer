@@ -24,6 +24,11 @@ public static class PakExtractor
 
     public static string Extract(string pakPath, IdxRecord record, string outputDirectory)
     {
+        if (!record.CanExtract)
+        {
+            throw new InvalidOperationException("추출 가능 판정이 된 레코드가 아닙니다.");
+        }
+
         if (!File.Exists(pakPath))
         {
             throw new FileNotFoundException("PAK 파일을 찾을 수 없습니다.", pakPath);
