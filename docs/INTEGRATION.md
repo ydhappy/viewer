@@ -94,11 +94,23 @@
 - README에 IDX parser registry와 `_EXTB$` probe 반영
 - KNOWN_ISSUES에 IDX strategy registry와 확장/보호 IDX 한계 반영
 
+### 29차 완료
+
+- `IdxParseResult` 추가
+- `IIdxParserStrategy`에 `IsProbeOnly`, `Description` 속성 추가
+- `IdxParserStrategyRegistry.ParseDetailed()` 추가
+- `IdxParser.ParseDetailed()` 추가
+- 선택된 IDX strategy 이름, probe 여부, message, strategy 목록을 담는 상세 결과 구조 추가
+- 기존 `IdxParser.Parse()` 호환 유지
+- README에 `IdxParseResult` 기반 상세 parse 결과 모델 반영
+- 향후 PAK 탭 Info/Log에 상세 결과를 직접 연결할 기반 마련
+
 ## 현재 적용 상태
 
 ### PAK / IDX
 
 - IDX parser registry 구조 적용 완료
+- `IdxParseResult` 상세 결과 모델 적용 완료
 - classic-28 실제 후보 파싱 지원
 - `_EXTB$` marker probe 지원
 - fallback binary/text 후보 표시 지원
@@ -149,13 +161,12 @@ L1MapViewer의 주요 흡수 대상은 다음과 같다.
 
 ## 다음 단계
 
-29차에서는 IDX parser registry를 UI/진단에 더 노출한다.
+30차에서는 `IdxParseResult`를 PAK 탭 UI에 직접 연결한다.
 
-- PAK 탭 Info 또는 Log에 등록 IDX strategy 목록 표시
-- IDX 로드 시 어떤 strategy가 선택됐는지 표시
-- `IdxParseResult` 모델 추가 검토
-- `_EXTB$` probe 결과를 사용자가 명확히 볼 수 있도록 표시
-- 이후 보호/확장 IDX 실제 record parser 이식 준비
+- PAK 탭 Info에 선택된 IDX strategy 표시
+- IDX 로드 직후 Info 탭에 parse result 표시
+- Log에 strategy/probe 여부 기록
+- `_EXTB$` probe-only 결과일 때 사용자 경고 문구 표시
 
 ## 주의사항
 
