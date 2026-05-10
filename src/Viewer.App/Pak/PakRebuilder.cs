@@ -87,7 +87,14 @@ public static class PakRebuilder
             {
                 if (!CanCopyRecord(record, sourceSize, out var reason))
                 {
-                    return Fail($"Cannot rebuild because record '{record.FileName}' is invalid: {reason}", sourcePakPath, outputPakPath, rebuiltRecords, deleted, sourceSize, output.Length);
+                    return FailFromRebuildRecords(
+                        $"Cannot rebuild because record '{record.FileName}' is invalid: {reason}",
+                        sourcePakPath,
+                        outputPakPath,
+                        rebuiltRecords,
+                        deleted,
+                        sourceSize,
+                        output.Length);
                 }
 
                 var newOffset = checked((int)output.Position);
@@ -171,6 +178,19 @@ public static class PakRebuilder
             sourcePakPath,
             outputPakPath,
             keptRecords.Select(record => new PakRebuildRecord(record, record.Offset, record.Size)).ToList(),
+            deletedRecords,
+            sourceSize,
+            outputSize);
+    }
+
+    private static PakRebuildResult FailFromRebuildRecords(string message, string sourcePakPath, string outputPakPath, IReadOnlyList<PakRebuildRecord> rebuiltRecords, IReadOnlyList<IdxRecord> deletedRecords, long sourceSize, long outputSize)
+    {
+        return new PakRebuildResult(
+            false,
+            message,
+            sourcePakPath,
+            outputPakPath,
+            rebuiltRecords,
             deletedRecords,
             sourceSize,
             outputSize);
