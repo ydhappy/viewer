@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Viewer.App;
 
 public sealed class MainForm : Form
@@ -307,6 +309,7 @@ public sealed class MainForm : Form
     private TabPage CreateMapPage()
     {
         Map.TileResourceSet? tileResourceSet = null;
+        var currentMapInfos = new List<Map.S32Info>();
 
         var page = new TabPage("S32 Map");
         var layout = new TableLayoutPanel
@@ -331,6 +334,10 @@ public sealed class MainForm : Form
         var zoomInButton = new Button { Text = "확대", AutoSize = true };
         var zoomOutButton = new Button { Text = "축소", AutoSize = true };
         var resetZoomButton = new Button { Text = "100%", AutoSize = true };
+        var saveRenderButton = new Button { Text = "PNG 저장", AutoSize = true };
+        var copyTileButton = new Button { Text = "Tile 복사", AutoSize = true };
+        var saveInfoButton = new Button { Text = "Info 저장", AutoSize = true };
+        var saveCsvButton = new Button { Text = "CSV 저장", AutoSize = true };
         var tileStatusLabel = new Label
         {
             Text = "Tile: not loaded",
@@ -344,6 +351,10 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(zoomInButton);
         toolbar.Controls.Add(zoomOutButton);
         toolbar.Controls.Add(resetZoomButton);
+        toolbar.Controls.Add(saveRenderButton);
+        toolbar.Controls.Add(copyTileButton);
+        toolbar.Controls.Add(saveInfoButton);
+        toolbar.Controls.Add(saveCsvButton);
         toolbar.Controls.Add(tileStatusLabel);
 
         var split = new SplitContainer
@@ -412,6 +423,70 @@ public sealed class MainForm : Form
             mapRenderPanel.ResetZoom();
             mapPreviewTabs.SelectedIndex = 1;
         };
+        saveRenderButton.Click += (_, _) =>
+        {
+            using var dialog = new SaveFileDialog
+            {
+                Title = "Render PNG 저장",
+                Filter = "PNG image (*.png)|*.png",
+                FileName = "s32-render.png"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            using var bitmap = mapRenderPanel.CreateSnapshot();
+            bitmap.Save(dialog.FileName, System.Drawing.Imaging.ImageFormat.Png);
+            WriteLog("Render PNG saved: " + dialog.FileName);
+        };
+        copyTileButton.Click += (_, _) =>
+        {
+            var text = mapRenderPanel.GetSelectedTileInfoText();
+            Clipboard.SetText(text);
+            WriteLog("Tile info copied to clipboard");
+        };
+        saveInfoButton.Click += (_, _) =>
+        {
+            using var dialog = new SaveFileDialog
+            {
+                Title = "S32 분석 정보 저장",
+                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                FileName = "s32-info.txt"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            File.WriteAllText(dialog.FileName, mapInfoBox.Text, Encoding.UTF8);
+            WriteLog("S32 info saved: " + dialog.FileName);
+        };
+        saveCsvButton.Click += (_, _) =>
+        {
+            if (currentMapInfos.Count == 0)
+            {
+                MessageBox.Show(this, "저장할 S32 스캔 결과가 없습니다.", "CSV 저장", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var dialog = new SaveFileDialog
+            {
+                Title = "S32 스캔 결과 CSV 저장",
+                Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                FileName = "s32-scan.csv"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            File.WriteAllText(dialog.FileName, BuildS32Csv(currentMapInfos), Encoding.UTF8);
+            WriteLog("S32 CSV saved: " + dialog.FileName);
+        };
 
         mapList.SelectedIndexChanged += (_, _) =>
         {
@@ -437,6 +512,8 @@ public sealed class MainForm : Form
             }
 
             var info = Map.S32Analyzer.Analyze(dialog.FileName);
+            currentMapInfos.Clear();
+            currentMapInfos.Add(info);
             mapList.Items.Clear();
             AddS32Item(mapList, info);
             mapInfoBox.Text = info.ToDisplayText();
@@ -460,6 +537,8 @@ public sealed class MainForm : Form
             try
             {
                 var infos = Map.S32Analyzer.ScanFolder(dialog.SelectedPath);
+                currentMapInfos.Clear();
+                currentMapInfos.AddRange(infos);
                 mapList.Items.Clear();
                 foreach (var info in infos)
                 {
@@ -524,6 +603,40 @@ public sealed class MainForm : Form
         item.SubItems.Add(info.FileSize.ToString("N0"));
         item.SubItems.Add(info.LayerCandidateSummary);
         list.Items.Add(item);
+    }
+
+    private static string BuildS32Csv(IEnumerable<Map.S32Info> infos)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("FileName,X,Y,Size,CoordinateSource,Candidate,Path");
+        foreach (var info in infos)
+        {
+            builder.Append(CsvEscape(info.FileName));
+            builder.Append(',');
+            builder.Append(info.Coordinate?.X.ToString() ?? string.Empty);
+            builder.Append(',');
+            builder.Append(info.Coordinate?.Y.ToString() ?? string.Empty);
+            builder.Append(',');
+            builder.Append(info.FileSize);
+            builder.Append(',');
+            builder.Append(CsvEscape(info.Coordinate?.Source ?? string.Empty));
+            builder.Append(',');
+            builder.Append(CsvEscape(info.LayerCandidateSummary));
+            builder.Append(',');
+            builder.AppendLine(CsvEscape(info.FilePath));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string CsvEscape(string value)
+    {
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\r') || value.Contains('\n'))
+        {
+            return '"' + value.Replace("\"", "\"\"") + '"';
+        }
+
+        return value;
     }
 
     private TabPage CreateLogPage()
