@@ -39,10 +39,14 @@ public sealed class MainForm : Form
         var openSpriteListButton = new Button { Text = "list.spr 열기", AutoSize = true };
         var exportButton = new Button { Text = "선택 추출", AutoSize = true, Enabled = false };
         var importSameSizeButton = new Button { Text = "같은크기 교체", AutoSize = true, Enabled = false };
+        var backupPakButton = new Button { Text = "PAK 백업", AutoSize = true, Enabled = false };
+        var restorePakButton = new Button { Text = "백업복원", AutoSize = true, Enabled = false };
         toolbar.Controls.Add(openIdxButton);
         toolbar.Controls.Add(openSpriteListButton);
         toolbar.Controls.Add(exportButton);
         toolbar.Controls.Add(importSameSizeButton);
+        toolbar.Controls.Add(backupPakButton);
+        toolbar.Controls.Add(restorePakButton);
 
         var list = CreatePakListView();
         var previewTabs = new TabControl { Dock = DockStyle.Fill };
@@ -77,10 +81,12 @@ public sealed class MainForm : Form
             }
         };
 
-        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton, importSameSizeButton);
+        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton, importSameSizeButton, backupPakButton, restorePakButton);
         openSpriteListButton.Click += (_, _) => LoadSpriteList(previewTabs, specialPreview);
         exportButton.Click += (_, _) => ExportSelectedPakRecords(list);
         importSameSizeButton.Click += (_, _) => ImportSameSizeSelectedPakRecord(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
+        backupPakButton.Click += (_, _) => BackupCurrentPak();
+        restorePakButton.Click += (_, _) => RestoreCurrentPakBackup(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
 
         layout.Controls.Add(toolbar, 0, 0);
         layout.Controls.Add(split, 0, 1);
@@ -105,7 +111,7 @@ public sealed class MainForm : Form
         return new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Font = new Font(FontFamily.GenericMonospace, 10) };
     }
 
-    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton, Button importSameSizeButton)
+    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton, Button importSameSizeButton, Button backupPakButton, Button restorePakButton)
     {
         using var dialog = new OpenFileDialog { Title = "IDX 파일 선택", Filter = "IDX files (*.idx)|*.idx|All files (*.*)|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
@@ -124,6 +130,8 @@ public sealed class MainForm : Form
             _spritePanel.SetRecords(_currentPakRecords, _currentIdxPath);
             exportButton.Enabled = false;
             importSameSizeButton.Enabled = false;
+            backupPakButton.Enabled = File.Exists(Pak.PakExtractor.ResolvePakPath(_currentIdxPath));
+            restorePakButton.Enabled = backupPakButton.Enabled;
             infoPreview.Text = state.InfoText;
             previewTabs.SelectedIndex = 3;
             WriteLog(state.LogText);
@@ -135,6 +143,8 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
+            backupPakButton.Enabled = false;
+            restorePakButton.Enabled = false;
             MessageBox.Show(this, ex.Message, "IDX load failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             WriteLog("IDX load failed: " + ex.Message);
         }
@@ -203,6 +213,74 @@ public sealed class MainForm : Form
         }
 
         MessageBox.Show(this, $"추출 완료\n성공: {success}\n실패: {failed}\n건너뜀: {skipped}", "Extract", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void BackupCurrentPak()
+    {
+        if (string.IsNullOrEmpty(_currentIdxPath))
+        {
+            return;
+        }
+
+        var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+        try
+        {
+            var backup = Pak.PakBackupService.CreateBackup(pakPath);
+            WriteLog("PAK backup created: " + backup.BackupPath);
+            MessageBox.Show(this, backup.ToDisplayText(), "PAK 백업", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            WriteLog("PAK backup failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "PAK 백업 실패", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void RestoreCurrentPakBackup(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview)
+    {
+        if (string.IsNullOrEmpty(_currentIdxPath))
+        {
+            return;
+        }
+
+        var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+        var backupDirectory = Path.GetDirectoryName(pakPath) ?? string.Empty;
+        var pakName = Path.GetFileName(pakPath);
+        using var dialog = new OpenFileDialog
+        {
+            Title = "복원할 PAK 백업 선택",
+            InitialDirectory = backupDirectory,
+            Filter = $"PAK backup ({pakName}.*.bak)|{pakName}.*.bak|All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        var confirm = MessageBox.Show(
+            this,
+            "현재 PAK를 선택한 백업으로 복원합니다.\n복원 전 현재 PAK도 자동 백업됩니다.\n\n계속할까요?",
+            "백업복원 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (confirm != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var restored = Pak.PakBackupService.RestoreBackup(pakPath, dialog.FileName, createPreRestoreBackup: true);
+            WriteLog("PAK backup restored: " + restored.BackupPath);
+            MessageBox.Show(this, restored.ToDisplayText(), "백업복원", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            if (list.SelectedItems.Count == 1 && list.SelectedItems[0].Tag is Pak.IdxRecord record)
+            {
+                ShowPakPreview(record, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteLog("PAK restore failed: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "백업복원 실패", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private bool CanImportSameSize(ListView list)
