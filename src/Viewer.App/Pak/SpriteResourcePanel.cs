@@ -237,7 +237,7 @@ public sealed class SpriteResourcePanel : UserControl
         lines.Add("==================");
         lines.Add("실제 SPR 프레임 디코더는 아직 연결되지 않았습니다.");
         lines.Add("다음 단계에서 프레임/방향/액션 단위 디코더를 이식합니다.");
-        lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview를 확인할 수 있습니다.");
+        lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview와 헤더 후보를 확인할 수 있습니다.");
 
         return string.Join(Environment.NewLine, lines);
     }
@@ -268,6 +268,7 @@ public sealed class SpriteResourcePanel : UserControl
         {
             var pakPath = PakExtractor.ResolvePakPath(_idxPath);
             var data = PakExtractor.ReadBytes(pakPath, record);
+            var analysis = SpriteHeaderAnalyzer.Analyze(data);
             _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine +
                 "SPR Byte Diagnostics" + Environment.NewLine +
                 "====================" + Environment.NewLine +
@@ -275,6 +276,7 @@ public sealed class SpriteResourcePanel : UserControl
                 $"Bytes    : {data.Length:N0}" + Environment.NewLine +
                 $"Signature: {BuildSignature(data)}" + Environment.NewLine +
                 string.Empty + Environment.NewLine +
+                analysis.ToDisplayText() + Environment.NewLine + Environment.NewLine +
                 "HEX Preview" + Environment.NewLine +
                 "-----------" + Environment.NewLine +
                 PreviewHelper.ToHexPreview(data, 1024);
@@ -407,6 +409,7 @@ public sealed class SpriteResourcePanel : UserControl
         graphics.DrawString("SPR Renderer Placeholder", titleFont, titleBrush, 32, 24);
         graphics.DrawString("list.spr entry와 PAK .spr record 매핑은 준비되었습니다.", font, brush, 44, 92);
         graphics.DrawString("SPR 진단/추출/정보 저장 기능도 연결되었습니다.", font, brush, 44, 118);
-        graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 144);
+        graphics.DrawString("헤더 후보 분석으로 프레임/방향/팔레트 추정값을 확인할 수 있습니다.", font, brush, 44, 144);
+        graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 170);
     }
 }
