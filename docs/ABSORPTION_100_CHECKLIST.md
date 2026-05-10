@@ -22,7 +22,7 @@ tony1223/L1MapViewer
 ## Current Branch
 
 ```text
-absorb-pak-idx-rewrite
+absorb-pak-delete-rebuild-flow
 ```
 
 ## Sections
@@ -53,11 +53,12 @@ D. Build validation
 
 - [ ] Add file
 - [x] Update file: same-size raw import service and UI
-- [ ] Delete file
+- [x] Delete file rebuild flow service
 - [x] Delete file safe plan model
 - [x] Same-size import
 - [x] Rebuild PAK writer without IDX rewrite
 - [x] Rebuild PAK with Classic28 IDX rewrite
+- [ ] Delete file rebuild flow UI
 - [ ] Rebuild PAK with non-Classic IDX rewrite
 - [x] Backup / rollback core service
 - [x] Backup / rollback UI
