@@ -7,14 +7,19 @@ public sealed class SpriteResourcePanel : UserControl
     private readonly Button _diagnosticsButton = new();
     private readonly Button _extractButton = new();
     private readonly Button _saveInfoButton = new();
+    private readonly Button _saveRawButton = new();
+    private readonly Button _savePreviewButton = new();
     private readonly ListView _entryList = new();
     private readonly TextBox _detailBox = new();
     private readonly Panel _renderPlaceholder = new();
+    private readonly PictureBox _rawPreviewBox = new();
 
     private SpriteListCatalog? _catalog;
     private IReadOnlyList<IdxRecord> _records = Array.Empty<IdxRecord>();
     private IReadOnlyList<SpriteListEntry> _visibleEntries = Array.Empty<SpriteListEntry>();
     private string? _idxPath;
+    private byte[]? _lastSprBytes;
+    private SpriteRawPreviewResult? _lastRawPreview;
 
     public SpriteResourcePanel()
     {
@@ -46,6 +51,10 @@ public sealed class SpriteResourcePanel : UserControl
         _extractButton.AutoSize = true;
         _saveInfoButton.Text = "정보 저장";
         _saveInfoButton.AutoSize = true;
+        _saveRawButton.Text = "Raw 저장";
+        _saveRawButton.AutoSize = true;
+        _savePreviewButton.Text = "Preview 저장";
+        _savePreviewButton.AutoSize = true;
 
         toolbar.Controls.Add(new Label { Text = "Sprite 검색", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_filterBox);
@@ -53,6 +62,8 @@ public sealed class SpriteResourcePanel : UserControl
         toolbar.Controls.Add(_diagnosticsButton);
         toolbar.Controls.Add(_extractButton);
         toolbar.Controls.Add(_saveInfoButton);
+        toolbar.Controls.Add(_saveRawButton);
+        toolbar.Controls.Add(_savePreviewButton);
 
         var split = new SplitContainer
         {
@@ -85,8 +96,13 @@ public sealed class SpriteResourcePanel : UserControl
         _renderPlaceholder.BackColor = Color.FromArgb(24, 24, 24);
         _renderPlaceholder.Paint += (_, e) => DrawRenderPlaceholder(e.Graphics);
 
+        _rawPreviewBox.Dock = DockStyle.Fill;
+        _rawPreviewBox.BackColor = Color.Black;
+        _rawPreviewBox.SizeMode = PictureBoxSizeMode.Zoom;
+
         rightTabs.TabPages.Add(new TabPage("Detail") { Controls = { _detailBox } });
         rightTabs.TabPages.Add(new TabPage("Render") { Controls = { _renderPlaceholder } });
+        rightTabs.TabPages.Add(new TabPage("Raw Preview") { Controls = { _rawPreviewBox } });
 
         split.Panel1.Controls.Add(_entryList);
         split.Panel2.Controls.Add(rightTabs);
@@ -96,9 +112,11 @@ public sealed class SpriteResourcePanel : UserControl
         Controls.Add(layout);
 
         _filterButton.Click += (_, _) => ApplyFilter();
-        _diagnosticsButton.Click += (_, _) => ShowSprDiagnostics();
+        _diagnosticsButton.Click += (_, _) => ShowSprDiagnostics(rightTabs);
         _extractButton.Click += (_, _) => ExtractSelectedSpr();
         _saveInfoButton.Click += (_, _) => SaveCurrentInfo();
+        _saveRawButton.Click += (_, _) => SaveCurrentRawBytes();
+        _savePreviewButton.Click += (_, _) => SaveCurrentRawPreview();
         _filterBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -125,6 +143,7 @@ public sealed class SpriteResourcePanel : UserControl
 
     private void ApplyFilter()
     {
+        ClearRawPreview();
         if (_catalog is null)
         {
             ShowInitialState();
@@ -164,6 +183,7 @@ public sealed class SpriteResourcePanel : UserControl
 
     private void ShowInitialState()
     {
+        ClearRawPreview();
         if (_catalog is null)
         {
             _entryList.Items.Clear();
@@ -196,6 +216,7 @@ public sealed class SpriteResourcePanel : UserControl
 
     private void ShowSelectedEntry()
     {
+        ClearRawPreview();
         var entry = GetSelectedEntry();
         if (entry is null)
         {
@@ -237,13 +258,14 @@ public sealed class SpriteResourcePanel : UserControl
         lines.Add("==================");
         lines.Add("실제 SPR 프레임 디코더는 아직 연결되지 않았습니다.");
         lines.Add("다음 단계에서 프레임/방향/액션 단위 디코더를 이식합니다.");
-        lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview와 헤더 후보를 확인할 수 있습니다.");
+        lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview와 raw grayscale preview를 확인할 수 있습니다.");
 
         return string.Join(Environment.NewLine, lines);
     }
 
-    private void ShowSprDiagnostics()
+    private void ShowSprDiagnostics(TabControl rightTabs)
     {
+        ClearRawPreview();
         var selected = GetSelectedEntry();
         if (selected is null)
         {
@@ -269,6 +291,11 @@ public sealed class SpriteResourcePanel : UserControl
             var pakPath = PakExtractor.ResolvePakPath(_idxPath);
             var data = PakExtractor.ReadBytes(pakPath, record);
             var analysis = SpriteHeaderAnalyzer.Analyze(data);
+            var preview = SpriteRawPreviewBuilder.Build(data, analysis);
+            _lastSprBytes = data;
+            _lastRawPreview = preview;
+            _rawPreviewBox.Image = new Bitmap(preview.Bitmap);
+
             _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine +
                 "SPR Byte Diagnostics" + Environment.NewLine +
                 "====================" + Environment.NewLine +
@@ -277,9 +304,12 @@ public sealed class SpriteResourcePanel : UserControl
                 $"Signature: {BuildSignature(data)}" + Environment.NewLine +
                 string.Empty + Environment.NewLine +
                 analysis.ToDisplayText() + Environment.NewLine + Environment.NewLine +
+                preview.ToDisplayText() + Environment.NewLine + Environment.NewLine +
                 "HEX Preview" + Environment.NewLine +
                 "-----------" + Environment.NewLine +
                 PreviewHelper.ToHexPreview(data, 1024);
+
+            rightTabs.SelectedIndex = 2;
         }
         catch (Exception ex)
         {
@@ -349,6 +379,54 @@ public sealed class SpriteResourcePanel : UserControl
         _detailBox.Text += Environment.NewLine + Environment.NewLine + "정보 저장 완료: " + dialog.FileName;
     }
 
+    private void SaveCurrentRawBytes()
+    {
+        if (_lastSprBytes is null || _lastSprBytes.Length == 0)
+        {
+            _detailBox.Text += Environment.NewLine + Environment.NewLine + "저장할 SPR raw byte가 없습니다. 먼저 SPR 진단을 실행하세요.";
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "SPR Raw Byte 저장",
+            Filter = "SPR files (*.spr)|*.spr|Binary files (*.bin)|*.bin|All files (*.*)|*.*",
+            FileName = "sprite-raw.spr"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        File.WriteAllBytes(dialog.FileName, _lastSprBytes);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + "SPR raw byte 저장 완료: " + dialog.FileName;
+    }
+
+    private void SaveCurrentRawPreview()
+    {
+        if (_lastRawPreview is null || _rawPreviewBox.Image is null)
+        {
+            _detailBox.Text += Environment.NewLine + Environment.NewLine + "저장할 SPR raw preview가 없습니다. 먼저 SPR 진단을 실행하세요.";
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "SPR Raw Preview PNG 저장",
+            Filter = "PNG image (*.png)|*.png",
+            FileName = "sprite-raw-preview.png"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _rawPreviewBox.Image.Save(dialog.FileName, System.Drawing.Imaging.ImageFormat.Png);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + "SPR raw preview 저장 완료: " + dialog.FileName;
+    }
+
     private SpriteListEntry? GetSelectedEntry()
     {
         if (_entryList.SelectedItems.Count != 1)
@@ -395,6 +473,15 @@ public sealed class SpriteResourcePanel : UserControl
         return string.Join(' ', data.Take(Math.Min(16, data.Length)).Select(value => value.ToString("X2")));
     }
 
+    private void ClearRawPreview()
+    {
+        _lastSprBytes = null;
+        _lastRawPreview = null;
+        var oldImage = _rawPreviewBox.Image;
+        _rawPreviewBox.Image = null;
+        oldImage?.Dispose();
+    }
+
     private void DrawRenderPlaceholder(Graphics graphics)
     {
         graphics.Clear(_renderPlaceholder.BackColor);
@@ -408,8 +495,8 @@ public sealed class SpriteResourcePanel : UserControl
         graphics.DrawRectangle(borderPen, rect);
         graphics.DrawString("SPR Renderer Placeholder", titleFont, titleBrush, 32, 24);
         graphics.DrawString("list.spr entry와 PAK .spr record 매핑은 준비되었습니다.", font, brush, 44, 92);
-        graphics.DrawString("SPR 진단/추출/정보 저장 기능도 연결되었습니다.", font, brush, 44, 118);
-        graphics.DrawString("헤더 후보 분석으로 프레임/방향/팔레트 추정값을 확인할 수 있습니다.", font, brush, 44, 144);
+        graphics.DrawString("SPR 진단/추출/정보 저장/raw 저장/preview 저장 기능도 연결되었습니다.", font, brush, 44, 118);
+        graphics.DrawString("Raw Preview 탭에서 후보 payload 회색조 preview를 확인할 수 있습니다.", font, brush, 44, 144);
         graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 170);
     }
 }
