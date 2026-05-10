@@ -85,6 +85,16 @@
 - Layer1 샘플이 없을 경우 기존 임시 Iso Grid로 fallback
 - Render 오버레이에 Layer1 샘플 개수/읽은 바이트 표시
 
+## 9차 완료
+
+- Render 탭 확대/축소 배율 추가
+- 마우스 휠 기반 줌 추가
+- 툴바 확대/축소/100% 버튼 추가
+- Layer1 색상 그리드 셀 크기 조절 추가
+- 마우스 위치 기준 Tile 좌표/Tile ID 표시
+- 클릭한 Tile 좌표/Tile ID 선택 표시
+- Hover Tile은 흰색 테두리, Selected Tile은 노란색 테두리로 표시
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -132,12 +142,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-9차에서는 렌더링 품질과 지도 탐색 UX를 보강한다.
+10차에서는 렌더링 내보내기와 검증 편의 기능을 보강한다.
 
-- Render 탭 확대/축소 배율 추가
-- Layer1 색상 그리드 셀 크기 조절
-- 마우스 위치 기준 Tile ID 표시
-- 선택된 Tile ID 정보 표시
+- Render 화면 PNG 저장
+- 현재 선택 Tile 정보 복사
+- S32 분석 결과 텍스트 저장
+- 지도 폴더 스캔 결과 CSV 저장
 - 이후 Tile 이미지 캐시/실제 타일 렌더러 연결
 
 ## 주의사항
