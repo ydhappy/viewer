@@ -5,6 +5,9 @@ public sealed class MainForm : Form
     private readonly TabControl _tabs = new();
     private readonly TextBox _logBox = new();
 
+    private string? _currentIdxPath;
+    private List<Pak.IdxRecord> _currentPakRecords = new();
+
     public MainForm()
     {
         Text = "viewer - Pak / Map 통합 뷰어";
@@ -50,12 +53,18 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             View = View.Details,
             FullRowSelect = true,
-            GridLines = true
+            GridLines = true,
+            MultiSelect = true
         };
         list.Columns.Add("No", 70, HorizontalAlignment.Right);
         list.Columns.Add("FileName", 300, HorizontalAlignment.Left);
         list.Columns.Add("Size", 120, HorizontalAlignment.Right);
         list.Columns.Add("Offset", 120, HorizontalAlignment.Right);
+
+        list.SelectedIndexChanged += (_, _) =>
+        {
+            exportButton.Enabled = list.SelectedItems.Count > 0 && !string.IsNullOrEmpty(_currentIdxPath);
+        };
 
         openIdxButton.Click += (_, _) =>
         {
@@ -73,22 +82,74 @@ public sealed class MainForm : Form
             try
             {
                 list.Items.Clear();
-                var records = Pak.IdxParser.Parse(dialog.FileName);
-                foreach (var record in records)
+                _currentIdxPath = dialog.FileName;
+                _currentPakRecords = Pak.IdxParser.Parse(dialog.FileName);
+
+                foreach (var record in _currentPakRecords)
                 {
-                    var item = new ListViewItem(record.Index.ToString());
+                    var item = new ListViewItem(record.Index.ToString())
+                    {
+                        Tag = record
+                    };
                     item.SubItems.Add(record.FileName);
                     item.SubItems.Add(record.Size.ToString("N0"));
                     item.SubItems.Add(record.Offset.ToString("N0"));
                     list.Items.Add(item);
                 }
-                WriteLog($"IDX loaded: {dialog.FileName}, records={records.Count}");
+
+                exportButton.Enabled = false;
+                WriteLog($"IDX loaded: {dialog.FileName}, records={_currentPakRecords.Count}");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "IDX load failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 WriteLog("IDX load failed: " + ex.Message);
             }
+        };
+
+        exportButton.Click += (_, _) =>
+        {
+            if (string.IsNullOrEmpty(_currentIdxPath) || list.SelectedItems.Count == 0)
+            {
+                return;
+            }
+
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "추출할 폴더 선택"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+            var success = 0;
+            var failed = 0;
+
+            foreach (ListViewItem item in list.SelectedItems)
+            {
+                if (item.Tag is not Pak.IdxRecord record)
+                {
+                    failed++;
+                    continue;
+                }
+
+                try
+                {
+                    var outputPath = Pak.PakExtractor.Extract(pakPath, record, dialog.SelectedPath);
+                    success++;
+                    WriteLog("Extracted: " + outputPath);
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    WriteLog($"Extract failed: {record.FileName} - {ex.Message}");
+                }
+            }
+
+            MessageBox.Show(this, $"추출 완료\n성공: {success}\n실패: {failed}", "Extract", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
 
         layout.Controls.Add(toolbar, 0, 0);
