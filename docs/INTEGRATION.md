@@ -259,6 +259,16 @@
 - nearest-neighbor 확대 적용으로 raw pixel 패턴 확인성 보강
 - 실제 SPR 프레임 디코더 이식 전 수동 검증 도구 강화
 
+## 25차 완료
+
+- `Viewer.App.csproj`의 Windows Forms / nullable / implicit usings 설정 재확인
+- README에 Sprite 탭 기능 반영
+- README에 SPR 헤더 후보 분석 / Raw Preview / 수동 width-offset-frame-zoom 조정 기능 반영
+- README 프로젝트 구조에 Sprite 관련 파일 추가
+- `KNOWN_ISSUES.md`에 Sprite / SPR 제한사항 섹션 추가
+- SPR Raw Preview가 실제 렌더링이 아닌 후보 payload 시각화임을 문서화
+- 다음 실제 SPR 디코더 이식 전 안정화 기준점 정리
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -306,12 +316,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-25차에서는 현재까지 추가된 대형 UI 변경의 문서/안정화를 보강한다.
+26차에서는 원본 SPR 디코더 이식 후보를 다시 찾고, 가능하면 최소 프레임 디코더 인터페이스를 추가한다.
 
-- README에 Sprite 탭/Raw Preview 기능 반영
-- Known Issues에 SPR raw preview 한계 기록
-- SpriteRawPreview/SpriteResourcePanel 컴파일 영향 점검
-- 이후 원본 SPR 디코더 이식 후보 재탐색
+- PakViewer 원본 코드에서 SPR/list.spr/이미지 처리 후보 재탐색
+- `ISpriteFrameDecoder` 인터페이스 추가
+- placeholder decoder와 raw preview decoder 분리
+- 실제 디코더 이식 가능 범위 선정
 
 ## 주의사항
 
