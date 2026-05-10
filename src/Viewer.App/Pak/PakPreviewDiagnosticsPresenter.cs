@@ -36,11 +36,11 @@ public static class PakPreviewDiagnosticsPresenter
         return $"Preview failed: {record.FileName} - compression={record.Compression}, packed={record.CompressedSize?.ToString() ?? "-"}, error={exception.Message}";
     }
 
-    public static string ResolvePakPathOrNull(string? currentIdxPath)
+    public static string? ResolvePakPathOrNull(string? currentIdxPath)
     {
         if (string.IsNullOrWhiteSpace(currentIdxPath))
         {
-            return string.Empty;
+            return null;
         }
 
         return PakExtractor.ResolvePakPath(currentIdxPath);
