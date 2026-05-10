@@ -43,6 +43,19 @@ dotnet build .\Viewer.sln -c Release --no-restore
 - commit status query returned an empty status list at check time.
 - commit workflow run query returned an empty workflow run list at check time.
 
+## Actions settings confirmation
+
+사용자가 repository settings에서 다음 항목을 저장했다.
+
+```text
+Actions permissions: Allow all actions and reusable workflows
+Workflow permissions: Read repository contents and packages permissions
+```
+
+## Push trigger validation
+
+이 문서 갱신 커밋은 Actions 권한 저장 후 `main` push trigger를 다시 발생시키기 위한 검증 커밋이다.
+
 ## Manual check path
 
 GitHub repository page:
@@ -52,13 +65,3 @@ Actions > Build > Windows .NET build
 ```
 
 If the workflow fails, inspect the first compiler error in the `Build Release` step and fix from the first error downward.
-
-## Next action
-
-If Actions does not show a run after this workflow file is present on `main`, check repository Actions settings first.
-
-```text
-Settings > Actions > General > Actions permissions
-```
-
-Actions must be enabled for this repository.
