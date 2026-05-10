@@ -328,13 +328,63 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(openMapButton);
         toolbar.Controls.Add(openFolderButton);
 
-        var infoBox = new TextBox
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            SplitterDistance = 680
+        };
+
+        var mapList = new ListView
+        {
+            Dock = DockStyle.Fill,
+            View = View.Details,
+            FullRowSelect = true,
+            GridLines = true,
+            MultiSelect = false
+        };
+        mapList.Columns.Add("FileName", 220, HorizontalAlignment.Left);
+        mapList.Columns.Add("X", 80, HorizontalAlignment.Right);
+        mapList.Columns.Add("Y", 80, HorizontalAlignment.Right);
+        mapList.Columns.Add("Size", 120, HorizontalAlignment.Right);
+        mapList.Columns.Add("Candidate", 320, HorizontalAlignment.Left);
+
+        var mapPreviewTabs = new TabControl { Dock = DockStyle.Fill };
+        var mapInfoBox = new TextBox
         {
             Dock = DockStyle.Fill,
             Multiline = true,
             ReadOnly = true,
             ScrollBars = ScrollBars.Both,
             Font = new Font(FontFamily.GenericMonospace, 10)
+        };
+        var mapRenderPlaceholder = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(32, 32, 32)
+        };
+        var placeholderLabel = new Label
+        {
+            Dock = DockStyle.Fill,
+            ForeColor = Color.White,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Text = "S32 렌더링 영역\n다음 단계에서 Tile.idx 연동 렌더러를 연결합니다."
+        };
+        mapRenderPlaceholder.Controls.Add(placeholderLabel);
+
+        mapPreviewTabs.TabPages.Add(new TabPage("Info") { Controls = { mapInfoBox } });
+        mapPreviewTabs.TabPages.Add(new TabPage("Render") { Controls = { mapRenderPlaceholder } });
+
+        split.Panel1.Controls.Add(mapList);
+        split.Panel2.Controls.Add(mapPreviewTabs);
+
+        mapList.SelectedIndexChanged += (_, _) =>
+        {
+            if (mapList.SelectedItems.Count == 1 && mapList.SelectedItems[0].Tag is Map.S32Info info)
+            {
+                mapInfoBox.Text = info.ToDisplayText();
+                mapPreviewTabs.SelectedIndex = 0;
+            }
         };
 
         openMapButton.Click += (_, _) =>
@@ -351,7 +401,9 @@ public sealed class MainForm : Form
             }
 
             var info = Map.S32Analyzer.Analyze(dialog.FileName);
-            infoBox.Text = info.ToDisplayText();
+            mapList.Items.Clear();
+            AddS32Item(mapList, info);
+            mapInfoBox.Text = info.ToDisplayText();
             WriteLog("S32 analyzed: " + dialog.FileName);
         };
 
@@ -367,15 +419,42 @@ public sealed class MainForm : Form
                 return;
             }
 
-            var files = Directory.GetFiles(dialog.SelectedPath, "*.s32", SearchOption.TopDirectoryOnly);
-            infoBox.Text = string.Join(Environment.NewLine, files.Select(Path.GetFileName));
-            WriteLog($"Map folder scanned: {dialog.SelectedPath}, s32={files.Length}");
+            try
+            {
+                var infos = Map.S32Analyzer.ScanFolder(dialog.SelectedPath);
+                mapList.Items.Clear();
+                foreach (var info in infos)
+                {
+                    AddS32Item(mapList, info);
+                }
+
+                mapInfoBox.Text = $"Folder: {dialog.SelectedPath}{Environment.NewLine}S32 files: {infos.Count:N0}";
+                WriteLog($"Map folder scanned: {dialog.SelectedPath}, s32={infos.Count}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "S32 scan failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WriteLog("S32 scan failed: " + ex.Message);
+            }
         };
 
         layout.Controls.Add(toolbar, 0, 0);
-        layout.Controls.Add(infoBox, 0, 1);
+        layout.Controls.Add(split, 0, 1);
         page.Controls.Add(layout);
         return page;
+    }
+
+    private static void AddS32Item(ListView list, Map.S32Info info)
+    {
+        var item = new ListViewItem(info.FileName)
+        {
+            Tag = info
+        };
+        item.SubItems.Add(info.Coordinate?.X.ToString() ?? "");
+        item.SubItems.Add(info.Coordinate?.Y.ToString() ?? "");
+        item.SubItems.Add(info.FileSize.ToString("N0"));
+        item.SubItems.Add(info.LayerCandidateSummary);
+        list.Items.Add(item);
     }
 
     private TabPage CreateLogPage()
