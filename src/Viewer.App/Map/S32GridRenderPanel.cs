@@ -2,6 +2,10 @@ namespace Viewer.App.Map;
 
 public sealed class S32GridRenderPanel : Panel
 {
+    private const int MaxTileImageDrawAttemptsPerPaint = 512;
+
+    private readonly DefaultTileImageCache _tileImageCache = new();
+
     private S32Info? _currentMap;
     private TileResourceSet? _tileResourceSet;
     private S32LayerSample? _layerSample;
@@ -10,6 +14,8 @@ public sealed class S32GridRenderPanel : Panel
     private Point? _hoverTile;
     private Point? _selectedTile;
     private float _zoom = 1.0f;
+    private int _lastTileImageSuccessCount;
+    private int _lastTileImageAttemptCount;
 
     public S32GridRenderPanel()
     {
@@ -43,7 +49,8 @@ public sealed class S32GridRenderPanel : Panel
             $"Zoom     : {_zoom:0.00}x",
             $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
-            $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}");
+            $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}",
+            $"TileImage: attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}");
     }
 
     public void ZoomIn()
@@ -73,6 +80,8 @@ public sealed class S32GridRenderPanel : Panel
         _layerSample = null;
         _hoverTile = null;
         _selectedTile = null;
+        _lastTileImageAttemptCount = 0;
+        _lastTileImageSuccessCount = 0;
 
         if (mapInfo is not null)
         {
@@ -92,6 +101,8 @@ public sealed class S32GridRenderPanel : Panel
     public void SetTileResource(TileResourceSet? tileResourceSet)
     {
         _tileResourceSet = tileResourceSet;
+        _lastTileImageAttemptCount = 0;
+        _lastTileImageSuccessCount = 0;
         Invalidate();
     }
 
@@ -136,6 +147,8 @@ public sealed class S32GridRenderPanel : Panel
 
         e.Graphics.Clear(BackColor);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+        e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
 
         if (_currentMap is null)
         {
@@ -166,14 +179,29 @@ public sealed class S32GridRenderPanel : Panel
 
         _lastCellSize = cellSize;
         _lastGridBounds = new Rectangle(startX, startY, gridWidth, gridHeight);
+        _lastTileImageAttemptCount = 0;
+        _lastTileImageSuccessCount = 0;
+
+        var canAttemptTileImages = _tileResourceSet is not null && cellSize >= 8;
 
         for (var y = 0; y < S32LayerSample.Height; y++)
         {
             for (var x = 0; x < S32LayerSample.Width; x++)
             {
                 var tileId = sample.GetTileId(x, y);
-                using var brush = new SolidBrush(BuildTileColor(tileId));
-                graphics.FillRectangle(brush, startX + x * cellSize, startY + y * cellSize, cellSize, cellSize);
+                var target = new Rectangle(startX + x * cellSize, startY + y * cellSize, cellSize, cellSize);
+                var imageDrawn = false;
+
+                if (canAttemptTileImages && _lastTileImageAttemptCount < MaxTileImageDrawAttemptsPerPaint)
+                {
+                    imageDrawn = TryDrawTileImage(graphics, tileId, target);
+                }
+
+                if (!imageDrawn)
+                {
+                    using var brush = new SolidBrush(BuildTileColor(tileId));
+                    graphics.FillRectangle(brush, target);
+                }
             }
         }
 
@@ -182,6 +210,34 @@ public sealed class S32GridRenderPanel : Panel
 
         DrawTileMarker(graphics, _hoverTile, Color.White, 1);
         DrawTileMarker(graphics, _selectedTile, Color.Yellow, 2);
+    }
+
+    private bool TryDrawTileImage(Graphics graphics, ushort tileId, Rectangle target)
+    {
+        if (_tileResourceSet is null || tileId == 0)
+        {
+            return false;
+        }
+
+        _lastTileImageAttemptCount++;
+        TileConversionResult result;
+        try
+        {
+            result = _tileImageCache.GetTileImage(tileId, _tileResourceSet);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (!result.Success || result.Image is null)
+        {
+            return false;
+        }
+
+        graphics.DrawImage(result.Image, target);
+        _lastTileImageSuccessCount++;
+        return true;
     }
 
     private void DrawTileMarker(Graphics graphics, Point? tilePoint, Color color, int width)
@@ -294,6 +350,9 @@ public sealed class S32GridRenderPanel : Panel
 
         var hoverTileId = GetTileId(_hoverTile);
         var selectedTileId = GetTileId(_selectedTile);
+        var tileImageText = _tileResourceSet is null
+            ? "Tile image render: unavailable"
+            : $"Tile image render: attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}, max/paint={MaxTileImageDrawAttemptsPerPaint:N0}";
 
         var lines = new List<string>
         {
@@ -304,10 +363,11 @@ public sealed class S32GridRenderPanel : Panel
             $"Zoom: {_zoom:0.00}x",
             $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected: {FormatTile(_selectedTile, selectedTileId)}",
-            $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}"
+            $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}",
+            tileImageText
         };
 
-        graphics.DrawString(_layerSample?.HasLayer1 == true ? "Layer1 Tile ID Color Grid" : "임시 Iso Grid Render", titleFont, brush, 12, 12);
+        graphics.DrawString(_layerSample?.HasLayer1 == true ? "Layer1 Tile Render" : "임시 Iso Grid Render", titleFont, brush, 12, 12);
         for (var i = 0; i < lines.Count; i++)
         {
             graphics.DrawString(lines[i], font, dimBrush, 12, 38 + i * 20);
