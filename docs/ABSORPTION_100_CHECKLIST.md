@@ -98,8 +98,73 @@ D. Build validation
 - [ ] import
 - [ ] info
 
+## B. L1MapViewer absorption
+
+### B1. S32 Core
+
+- [x] S32 open
+- [x] S32 folder scan
+- [x] coordinate candidate extraction
+- [x] Layer1 sample parser
+- [ ] full S32 file parser
+- [ ] Layer1 full parser
+- [ ] Layer2 parser
+- [ ] Layer3 parser
+- [ ] Layer4 object parser
+- [ ] Layer5 parser
+- [ ] Layer7 parser
+
+### B2. Tile Rendering
+
+- [x] Tile.idx / Tile.pak resource set
+- [x] tile id lookup candidate
+- [x] L1 TIL block parser candidate
+- [x] TIL block/sheet preview candidate
+- [ ] TBT metadata parser
+- [ ] IMG decoder
+- [ ] Tile ID to TIL block mapping
+- [ ] accurate isometric tile placement
+- [ ] tile cache refresh/invalidation
+
+### B3. Map Viewer UX
+
+- [x] ColorGrid render mode
+- [x] IsoTile render mode candidate
+- [x] zoom in/out/reset
+- [x] middle mouse pan
+- [x] hover/select candidate
+- [x] viewport clipping
+- [ ] minimap
+- [ ] layer visibility toggle
+- [ ] object overlay
+- [ ] viewport virtualization hardening
+
+### B4. Map Editing
+
+- [ ] Layer1 edit
+- [ ] Layer2 edit
+- [ ] Layer3 edit
+- [ ] Layer4 object select/delete
+- [ ] Layer5 edit
+- [ ] Layer7 edit
+- [ ] undo/redo
+- [ ] batch operation
+- [ ] save S32
+
+### B5. Export / CLI / Benchmark
+
+- [x] PNG snapshot candidate
+- [ ] accurate map PNG export
+- [ ] CLI info
+- [ ] CLI extract-tile
+- [ ] CLI render-adjacent
+- [ ] benchmark-viewport
+- [ ] benchmark-minimap
+- [ ] benchmark-thumbnails
+
 ## Next append target
 
 ```text
-B. L1MapViewer absorption
+C. Integration enhancement
+D. Build validation
 ```
