@@ -143,6 +143,11 @@ public sealed class DefaultTileImageCache : ITileImageCache
         return _registry.ToDisplayText();
     }
 
+    public string GetConverterName(TileConversionCandidate candidate, IdxRecord record)
+    {
+        return _registry.Select(candidate, record).Name;
+    }
+
     private TileConversionResult ConvertTile(int tileId, TileResourceSet tileResourceSet)
     {
         var record = tileResourceSet.FindByTileId(tileId);
