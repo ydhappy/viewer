@@ -41,6 +41,96 @@ public sealed class DirectImageTileResourceConverter : ITileResourceConverter
     }
 }
 
+public sealed class RawByteDiagnosticTileResourceConverter : ITileResourceConverter
+{
+    public string Name => "RawByteDiagnostic";
+
+    public bool CanConvert(TileConversionCandidate candidate, IdxRecord record)
+    {
+        return candidate.Kind is TileResourceKind.Tile or TileResourceKind.RawImage;
+    }
+
+    public TileConversionResult Convert(int tileId, TileResourceSet tileResourceSet, IdxRecord record, TileConversionCandidate candidate)
+    {
+        if (!record.CanExtract)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "레코드가 추출 가능 상태가 아닙니다.");
+        }
+
+        try
+        {
+            var data = PakExtractor.ReadBytes(tileResourceSet.PakPath, record);
+            if (data.Length == 0)
+            {
+                return new TileConversionResult(tileId, record, candidate, false, null, Name, "빈 리소스입니다.");
+            }
+
+            var bitmap = BuildDiagnosticBitmap(data);
+            return new TileConversionResult(
+                tileId,
+                record,
+                candidate,
+                true,
+                bitmap,
+                Name,
+                "실제 TIL/IMG 렌더링이 아닌 Raw Byte 진단 이미지입니다. 데이터 패턴 확인용으로만 사용하세요.");
+        }
+        catch (Exception ex)
+        {
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "Raw Byte 진단 이미지 생성 실패: " + ex.Message);
+        }
+    }
+
+    private static Bitmap BuildDiagnosticBitmap(byte[] data)
+    {
+        var width = GuessWidth(data.Length);
+        var height = Math.Max(1, (int)Math.Ceiling(data.Length / (double)width));
+        height = Math.Min(height, 512);
+
+        var bitmap = new Bitmap(width, height);
+        var max = Math.Min(data.Length, width * height);
+        for (var i = 0; i < max; i++)
+        {
+            var value = data[i];
+            var x = i % width;
+            var y = i / width;
+            bitmap.SetPixel(x, y, Color.FromArgb(value, value, value));
+        }
+
+        return bitmap;
+    }
+
+    private static int GuessWidth(int length)
+    {
+        if (length % 128 == 0)
+        {
+            return 128;
+        }
+
+        if (length % 64 == 0)
+        {
+            return 64;
+        }
+
+        if (length % 48 == 0)
+        {
+            return 48;
+        }
+
+        if (length % 32 == 0)
+        {
+            return 32;
+        }
+
+        if (length % 24 == 0)
+        {
+            return 24;
+        }
+
+        return 64;
+    }
+}
+
 public sealed class PlaceholderTileResourceConverter : ITileResourceConverter
 {
     private readonly TileResourceKind _kind;
@@ -96,8 +186,7 @@ public sealed class TileResourceConverterRegistry
         return new TileResourceConverterRegistry(new ITileResourceConverter[]
         {
             new DirectImageTileResourceConverter(),
-            new PlaceholderTileResourceConverter(TileResourceKind.Tile, "TIL", "TIL 변환기는 아직 구현되지 않았습니다. 다음 단계에서 원본 타일 포맷을 흡수합니다."),
-            new PlaceholderTileResourceConverter(TileResourceKind.RawImage, "IMG", "IMG 변환기는 아직 구현되지 않았습니다. 원본 IMG 포맷 해석이 필요합니다."),
+            new RawByteDiagnosticTileResourceConverter(),
             new PlaceholderTileResourceConverter(TileResourceKind.Sprite, "SPR", "SPR 변환기는 아직 구현되지 않았습니다. list.spr/프레임 구조 연동이 필요합니다."),
             new PlaceholderTileResourceConverter(TileResourceKind.TileTable, "TBT", "TBT는 이미지가 아닌 타일 테이블 후보입니다. 별도 메타데이터 파서가 필요합니다."),
             new PlaceholderTileResourceConverter(TileResourceKind.Text, "Text", "텍스트 리소스는 타일 이미지 변환 대상이 아닙니다."),
