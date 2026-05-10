@@ -77,12 +77,21 @@ public sealed class L1TilTileResourceConverter : ITileResourceConverter
                 return new TileConversionResult(tileId, record, candidate, false, null, Name, "TIL block 후보 데이터가 비어 있습니다.");
             }
 
-            var image = L1ImageFormatDecoder.RenderTilBlock(data);
-            return new TileConversionResult(tileId, record, candidate, true, image, Name, "L1 TIL 24x24 block preview 생성 성공. 전체 TIL parser 전 단계의 첫 block 후보 렌더링입니다.");
+            var blocks = L1TilBlockParser.ParseBlocks(data);
+            if (blocks.Count == 0)
+            {
+                return new TileConversionResult(tileId, record, candidate, false, null, Name, "TIL block parser가 block을 찾지 못했습니다.");
+            }
+
+            var image = blocks.Count == 1
+                ? L1ImageFormatDecoder.RenderTilBlock(blocks[0].Data)
+                : L1ImageFormatDecoder.RenderTilSheet(blocks.Select(block => block.Data).ToList());
+            var summary = L1TilBlockParser.BuildSummary(blocks, data.Length);
+            return new TileConversionResult(tileId, record, candidate, true, image, Name, "L1 TIL preview 생성 성공." + Environment.NewLine + summary);
         }
         catch (Exception ex)
         {
-            return new TileConversionResult(tileId, record, candidate, false, null, Name, "L1 TIL block preview 실패: " + ex.Message);
+            return new TileConversionResult(tileId, record, candidate, false, null, Name, "L1 TIL preview 실패: " + ex.Message);
         }
     }
 }
