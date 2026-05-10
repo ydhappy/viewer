@@ -2,10 +2,12 @@
 
 ## IDX / PAK
 
-- 현재 IDX 파서는 classic 28-byte 후보 구조를 우선 지원한다.
+- 현재 IDX 파서는 strategy registry 구조로 분리되어 있다.
+- 현재 실제 레코드 파싱은 classic 28-byte 후보 구조를 우선 지원한다.
+- `_EXTB$` 확장 IDX는 marker probe만 지원하며 실제 확장 레코드 해석은 아직 구현되지 않았다.
 - 보호/암호화 IDX는 아직 지원하지 않는다.
-- `_EXTB$` 확장 IDX는 아직 지원하지 않는다.
 - IDX 포맷이 다른 클라이언트에서는 목록/offset/size가 정확하지 않을 수 있다.
+- fallback parser는 원본 파일을 안전하게 표시하기 위한 보조 항목이며 추출 가능한 레코드로 간주하지 않는다.
 
 ## Sprite / SPR
 
