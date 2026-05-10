@@ -21,6 +21,31 @@ public sealed class S32GridRenderPanel : Panel
 
     public float Zoom => _zoom;
 
+    public Bitmap CreateSnapshot()
+    {
+        var width = Math.Max(1, Width);
+        var height = Math.Max(1, Height);
+        var bitmap = new Bitmap(width, height);
+        DrawToBitmap(bitmap, new Rectangle(0, 0, width, height));
+        return bitmap;
+    }
+
+    public string GetSelectedTileInfoText()
+    {
+        var selectedTileId = GetTileId(_selectedTile);
+        var hoverTileId = GetTileId(_hoverTile);
+
+        return string.Join(Environment.NewLine,
+            "S32 Render Tile Info",
+            "====================",
+            $"Map      : {(_currentMap is null ? "-" : _currentMap.FileName)}",
+            $"Path     : {(_currentMap is null ? "-" : _currentMap.FilePath)}",
+            $"Zoom     : {_zoom:0.00}x",
+            $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
+            $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
+            $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}");
+    }
+
     public void ZoomIn()
     {
         SetZoom(_zoom + 0.25f);
