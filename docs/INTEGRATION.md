@@ -151,6 +151,17 @@
 - Tile 패널에 `변환기 목록` 버튼 추가
 - Tile 레코드 선택 시 사용될 변환기 이름 표시
 
+## 15차 완료
+
+- `TileResourceDiagnostics` 추가
+- `TileResourceDiagnosticsAnalyzer` 추가
+- Tile 리소스 바이트 HEX preview 기능 추가
+- PNG/BMP/JPEG/GIF 시그니처 감지 추가
+- TIL/IMG/SPR/TBT/Text/Binary 후보별 진단 Summary 추가
+- Tile 패널에 `진단` 버튼 추가
+- 선택 레코드의 헤더/HEX/후보 분석 결과 표시
+- 실제 TIL/IMG/SPR 변환 전 포맷 분석 기반 마련
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -198,13 +209,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-15차에서는 실제 포맷 분석 보강을 우선한다.
+16차에서는 빌드 안정성 검토와 컴파일 오류 가능 구간을 정리한다.
 
-- TIL/IMG/Spr 파일 헤더 분석 결과 표시
-- 변환기별 상세 진단 메시지 추가
-- Tile 패널에서 변환 대상 바이트 HEX preview 표시
-- 실제 TIL/IMG 변환 로직 흡수 준비
-- 이후 원본 PakViewer의 리소스 변환 로직 분석/이식
+- 전체 C# 파일 참조 관계 점검
+- Nullable/namespace/constructor 변경 영향 확인
+- README/KNOWN_ISSUES에 15차 기능 반영
+- 이후 원본 PakViewer의 TIL/IMG/SPR 변환 로직 분석/이식
 
 ## 주의사항
 
