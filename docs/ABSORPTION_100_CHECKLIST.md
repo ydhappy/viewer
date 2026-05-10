@@ -22,7 +22,7 @@ tony1223/L1MapViewer
 ## Current Branch
 
 ```text
-absorb-pak-delete-plan
+absorb-pak-rebuild-writer
 ```
 
 ## Sections
@@ -56,7 +56,8 @@ D. Build validation
 - [ ] Delete file
 - [x] Delete file safe plan model
 - [x] Same-size import
-- [ ] Rebuild PAK
+- [x] Rebuild PAK writer without IDX rewrite
+- [ ] Rebuild PAK with IDX rewrite
 - [x] Backup / rollback core service
 - [x] Backup / rollback UI
 - [x] Write diagnostics
@@ -205,6 +206,6 @@ D. Build validation
 ## Next work target
 
 ```text
-A2 Rebuild PAK
+A2 IDX rewrite for rebuilt PAK
 A2 Delete file actual rebuild flow
 ```
