@@ -4,6 +4,7 @@ public sealed class TileResourcePanel : UserControl
 {
     private readonly TextBox _searchBox = new();
     private readonly Button _searchButton = new();
+    private readonly Button _diagnosticsButton = new();
     private readonly Button _converterButton = new();
     private readonly ListView _recordList = new();
     private readonly TextBox _detailBox = new();
@@ -36,11 +37,14 @@ public sealed class TileResourcePanel : UserControl
         _searchBox.PlaceholderText = "Tile ID";
         _searchButton.Text = "검색/변환";
         _searchButton.AutoSize = true;
+        _diagnosticsButton.Text = "진단";
+        _diagnosticsButton.AutoSize = true;
         _converterButton.Text = "변환기 목록";
         _converterButton.AutoSize = true;
         toolbar.Controls.Add(new Label { Text = "Tile ID", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_searchBox);
         toolbar.Controls.Add(_searchButton);
+        toolbar.Controls.Add(_diagnosticsButton);
         toolbar.Controls.Add(_converterButton);
 
         var split = new SplitContainer
@@ -85,6 +89,7 @@ public sealed class TileResourcePanel : UserControl
         Controls.Add(layout);
 
         _searchButton.Click += (_, _) => SearchTile(rightTabs);
+        _diagnosticsButton.Click += (_, _) => ShowDiagnostics(rightTabs);
         _converterButton.Click += (_, _) =>
         {
             ClearImage();
@@ -167,6 +172,40 @@ public sealed class TileResourcePanel : UserControl
         }
     }
 
+    private void ShowDiagnostics(TabControl rightTabs)
+    {
+        ClearImage();
+
+        if (_tileResourceSet is null)
+        {
+            _detailBox.Text = "Tile.idx가 아직 로드되지 않았습니다.";
+            rightTabs.SelectedIndex = 0;
+            return;
+        }
+
+        var record = GetSelectedRecord();
+        if (record is null)
+        {
+            _detailBox.Text = "진단할 Tile 레코드를 목록에서 선택하세요.";
+            rightTabs.SelectedIndex = 0;
+            return;
+        }
+
+        var diagnostics = TileResourceDiagnosticsAnalyzer.Analyze(_tileResourceSet, record);
+        _detailBox.Text = diagnostics.ToDisplayText();
+        rightTabs.SelectedIndex = 0;
+    }
+
+    private Viewer.App.Pak.IdxRecord? GetSelectedRecord()
+    {
+        if (_recordList.SelectedItems.Count != 1)
+        {
+            return null;
+        }
+
+        return _recordList.SelectedItems[0].Tag as Viewer.App.Pak.IdxRecord;
+    }
+
     private void SelectRecord(Viewer.App.Pak.IdxRecord record)
     {
         foreach (ListViewItem item in _recordList.Items)
@@ -205,7 +244,8 @@ public sealed class TileResourcePanel : UserControl
             $"CanExtract: {(record.CanExtract ? "YES" : "NO")}",
             $"Format    : {record.Format}",
             string.Empty,
-            "※ 이미지 변환은 Tile ID 검색/변환 버튼으로 실행합니다.");
+            "※ 이미지 변환은 Tile ID 검색/변환 버튼으로 실행합니다.",
+            "※ 헤더/HEX 확인은 진단 버튼을 사용하세요.");
     }
 
     private void ClearImage()
