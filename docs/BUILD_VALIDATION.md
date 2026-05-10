@@ -1,67 +1,79 @@
 # Build Validation
 
-## GitHub Actions
+## 목적
 
-자동 빌드 workflow가 추가되어 있다.
+이 문서는 `viewer`의 빌드 검증 기준만 관리한다.
+
+## GitHub Actions
 
 ```text
 .github/workflows/build.yml
 ```
 
-## Trigger
+Workflow 이름:
 
-이 파일은 build workflow push trigger 검증용 기록이다.
+```text
+Build / Windows .NET build
+```
 
-## Expected command
+Trigger:
+
+```text
+main push
+main pull_request
+manual workflow_dispatch
+```
+
+## 기준 빌드 명령
 
 ```powershell
-dotnet restore .\Viewer.sln
-dotnet build .\Viewer.sln -c Release --no-restore
+dotnet restore .\Viewer.sln --verbosity minimal
+dotnet build .\Viewer.sln -c Release --no-restore --verbosity minimal
 ```
 
-## Notes
+## Artifact
 
-- Windows runner 기준
-- .NET 10 SDK 기준
-- WinForms target: `net10.0-windows`
-
-## Workflow hardening
-
-최근 workflow는 다음 항목을 포함하도록 보강했다.
+빌드 성공 시 다음 artifact를 업로드한다.
 
 ```text
-- timeout-minutes: 20
-- dotnet --info
-- dotnet --list-sdks
-- restore/build --verbosity minimal
-- failure/success 관계없이 bin output listing
+viewer-release-build
 ```
 
-## Latest validation attempt
-
-- workflow hardening commit: `95b9cf93a8e251734ec4847119c470a4ec613e5b`
-- commit status query returned an empty status list at check time.
-- commit workflow run query returned an empty workflow run list at check time.
-
-## Actions settings confirmation
-
-사용자가 repository settings에서 다음 항목을 저장했다.
+## 환경
 
 ```text
-Actions permissions: Allow all actions and reusable workflows
-Workflow permissions: Read repository contents and packages permissions
+OS: windows-latest
+SDK: .NET 10.x
+TargetFramework: net10.0-windows
+App Type: WinForms
 ```
 
-## Push trigger validation
+## 최근 주의 대상
 
-이 문서 갱신 커밋은 Actions 권한 저장 후 `main` push trigger를 다시 발생시키기 위한 검증 커밋이다.
-
-## Manual check path
-
-GitHub repository page:
+최근 다음 영역의 변경이 많으므로 빌드 실패 시 우선 확인한다.
 
 ```text
-Actions > Build > Windows .NET build
+src/Viewer.App/Map/S32GridRenderPanel.cs
+src/Viewer.App/Map/S32IsoTileLayout.cs
+src/Viewer.App/Map/TileConversion.cs
+src/Viewer.App/Map/TileResourceConverters.cs
+src/Viewer.App/Pak/L1TilBlockParser.cs
+src/Viewer.App/Pak/L1ImageFormatDecoder.cs
+src/Viewer.App/Pak/ImageResourceDecoder.cs
+src/Viewer.App/Pak/DesIdxParserStrategy.cs
+src/Viewer.App/Pak/PakExtractor.cs
 ```
 
-If the workflow fails, inspect the first compiler error in the `Build Release` step and fix from the first error downward.
+## 검증 절차
+
+1. GitHub repository의 Actions 탭을 연다.
+2. `Build` workflow를 확인한다.
+3. 최신 `main` push 실행 결과를 확인한다.
+4. 실패 시 `Build Release` 단계의 첫 번째 compiler error부터 수정한다.
+5. 성공 시 `viewer-release-build` artifact 생성 여부를 확인한다.
+
+## 실패 처리 원칙
+
+- 여러 오류가 있어도 첫 번째 compiler error부터 수정한다.
+- 경고는 빌드 실패 원인이 아니면 후순위로 둔다.
+- Actions에서 성공하면 문서와 README에는 성공 기준만 유지한다.
