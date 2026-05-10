@@ -85,6 +85,14 @@ public sealed class MainForm : Form
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Black
         };
+        var specialPreview = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font(FontFamily.GenericMonospace, 10)
+        };
         var infoPreview = new TextBox
         {
             Dock = DockStyle.Fill,
@@ -96,6 +104,7 @@ public sealed class MainForm : Form
 
         previewTabs.TabPages.Add(new TabPage("Text / Hex") { Controls = { textPreview } });
         previewTabs.TabPages.Add(new TabPage("Image") { Controls = { imagePreview } });
+        previewTabs.TabPages.Add(new TabPage("Special") { Controls = { specialPreview } });
         previewTabs.TabPages.Add(new TabPage("Info") { Controls = { infoPreview } });
 
         split.Panel1.Controls.Add(list);
@@ -110,14 +119,15 @@ public sealed class MainForm : Form
 
             if (list.SelectedItems.Count == 1 && list.SelectedItems[0].Tag is Pak.IdxRecord selectedRecord)
             {
-                ShowPakPreview(selectedRecord, previewTabs, textPreview, imagePreview, infoPreview);
+                ShowPakPreview(selectedRecord, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
             }
             else if (list.SelectedItems.Count > 1)
             {
                 ClearImage(imagePreview);
                 textPreview.Text = "여러 항목이 선택되었습니다. 미리보기는 단일 선택에서만 표시됩니다.";
+                specialPreview.Clear();
                 infoPreview.Text = $"Selected: {list.SelectedItems.Count:N0}";
-                previewTabs.SelectedIndex = 2;
+                previewTabs.SelectedIndex = 3;
             }
         };
 
@@ -139,6 +149,7 @@ public sealed class MainForm : Form
                 list.Items.Clear();
                 ClearImage(imagePreview);
                 textPreview.Clear();
+                specialPreview.Clear();
                 infoPreview.Clear();
 
                 _currentIdxPath = dialog.FileName;
@@ -228,10 +239,11 @@ public sealed class MainForm : Form
         return page;
     }
 
-    private void ShowPakPreview(Pak.IdxRecord record, TabControl tabs, TextBox textPreview, PictureBox imagePreview, TextBox infoPreview)
+    private void ShowPakPreview(Pak.IdxRecord record, TabControl tabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview)
     {
         ClearImage(imagePreview);
         textPreview.Clear();
+        specialPreview.Clear();
         infoPreview.Text = string.Join(Environment.NewLine,
             $"FileName : {record.FileName}",
             $"Size     : {record.Size:N0}",
@@ -242,7 +254,7 @@ public sealed class MainForm : Form
         if (string.IsNullOrEmpty(_currentIdxPath) || !record.CanExtract)
         {
             textPreview.Text = "추출/미리보기 가능한 레코드가 아닙니다.";
-            tabs.SelectedIndex = 2;
+            tabs.SelectedIndex = 3;
             return;
         }
 
@@ -263,13 +275,17 @@ public sealed class MainForm : Form
                     imagePreview.Image = Pak.PreviewHelper.LoadImage(data);
                     tabs.SelectedIndex = 1;
                     break;
+                case Pak.PreviewKind.Special:
+                    specialPreview.Text = Pak.SpecialResourceAnalyzer.Analyze(record.FileName, data).ToDisplayText();
+                    tabs.SelectedIndex = 2;
+                    break;
                 case Pak.PreviewKind.Hex:
                     textPreview.Text = Pak.PreviewHelper.ToHexPreview(data);
                     tabs.SelectedIndex = 0;
                     break;
                 default:
                     textPreview.Text = "지원하지 않는 미리보기 형식입니다. 추출 후 외부 도구로 확인하세요.";
-                    tabs.SelectedIndex = 2;
+                    tabs.SelectedIndex = 3;
                     break;
             }
         }
@@ -277,7 +293,7 @@ public sealed class MainForm : Form
         {
             textPreview.Text = ex.Message;
             infoPreview.AppendText(Environment.NewLine + "Preview error: " + ex.Message);
-            tabs.SelectedIndex = 2;
+            tabs.SelectedIndex = 3;
         }
     }
 
