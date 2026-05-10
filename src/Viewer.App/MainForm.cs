@@ -387,15 +387,7 @@ public sealed class MainForm : Form
             ScrollBars = ScrollBars.Both,
             Font = new Font(FontFamily.GenericMonospace, 10)
         };
-        var tileInfoBox = new TextBox
-        {
-            Dock = DockStyle.Fill,
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Both,
-            Font = new Font(FontFamily.GenericMonospace, 10),
-            Text = "Tile.idx를 열면 이곳에 타일 리소스 상태가 표시됩니다."
-        };
+        var tilePanel = new Map.TileResourcePanel();
         var mapRenderPanel = new Map.S32GridRenderPanel
         {
             Dock = DockStyle.Fill
@@ -403,7 +395,7 @@ public sealed class MainForm : Form
 
         mapPreviewTabs.TabPages.Add(new TabPage("Info") { Controls = { mapInfoBox } });
         mapPreviewTabs.TabPages.Add(new TabPage("Render") { Controls = { mapRenderPanel } });
-        mapPreviewTabs.TabPages.Add(new TabPage("Tile") { Controls = { tileInfoBox } });
+        mapPreviewTabs.TabPages.Add(new TabPage("Tile") { Controls = { tilePanel } });
 
         split.Panel1.Controls.Add(mapList);
         split.Panel2.Controls.Add(mapPreviewTabs);
@@ -574,7 +566,7 @@ public sealed class MainForm : Form
             {
                 tileResourceSet = Map.TileResourceSet.Load(dialog.FileName);
                 mapRenderPanel.SetTileResource(tileResourceSet);
-                tileInfoBox.Text = tileResourceSet.ToDisplayText();
+                tilePanel.SetTileResource(tileResourceSet);
                 tileStatusLabel.Text = $"Tile: {tileResourceSet.ExtractableRecords:N0}/{tileResourceSet.TotalRecords:N0}";
                 mapPreviewTabs.SelectedIndex = 2;
                 WriteLog("Tile.idx loaded: " + dialog.FileName);
