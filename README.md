@@ -14,7 +14,10 @@
 ### PAK / IDX
 
 - IDX 열기
+- `IIdxParserStrategy` 기반 IDX parser registry
 - classic 28-byte IDX 후보 파싱
+- `_EXTB$` 확장 IDX marker probe
+- fallback binary/text 후보 파싱
 - PAK/PAK 대소문자 자동 탐색
 - 추출 가능 레코드 표시
 - 선택 레코드 추출
@@ -118,9 +121,11 @@ viewer/
 │  └─ KNOWN_ISSUES.md
 └─ src/Viewer.App/
    ├─ Viewer.App.csproj
+   ├─ GlobalUsings.cs
    ├─ Program.cs
    ├─ MainForm.cs
    ├─ Pak/
+   │  ├─ IdxParserStrategy.cs
    │  ├─ IdxRecord.cs
    │  ├─ IdxParser.cs
    │  ├─ PakExtractor.cs
@@ -155,7 +160,7 @@ viewer/
 ## 다음 개발 방향
 
 1. 보호/암호화 IDX 처리
-2. `_EXTB$` 확장 IDX 처리
+2. `_EXTB$` 확장 IDX 실제 레코드 파서
 3. TIL/IMG 실제 이미지 변환
 4. SPR 실제 프레임 디코더/팔레트/방향별 렌더링
 5. Tile.idx 기반 실제 타일 이미지 캐시
