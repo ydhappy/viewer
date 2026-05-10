@@ -43,6 +43,11 @@ public sealed record TileConversionResult(
         return new TileConversionResult(tileId, null, TileConversionCandidate.Unknown, false, null, "none", message);
     }
 
+    public TileConversionResult WithMessagePrefix(string prefix)
+    {
+        return this with { Message = prefix + Environment.NewLine + Message };
+    }
+
     public string ToDisplayText()
     {
         if (Record is null)
@@ -53,7 +58,8 @@ public sealed record TileConversionResult(
                 $"Tile ID   : {TileId}",
                 "Record    : not found",
                 $"Converter : {ConverterName}",
-                $"Result    : {Message}");
+                "Result    :",
+                Message);
         }
 
         return string.Join(Environment.NewLine,
@@ -71,7 +77,8 @@ public sealed record TileConversionResult(
             $"Candidate   : {Candidate.Description}",
             $"Converter   : {ConverterName}",
             $"Image       : {(Success ? "available" : "unavailable")}",
-            $"Result      : {Message}");
+            "Result      :",
+            Message);
     }
 }
 
@@ -157,7 +164,6 @@ public sealed class DefaultTileImageCache : ITileImageCache
         }
 
         var candidate = TileResourceClassifier.Classify(record);
-        var converter = _registry.Select(candidate, record);
-        return converter.Convert(tileId, tileResourceSet, record, candidate);
+        return _registry.ConvertWithFallback(tileId, tileResourceSet, record, candidate);
     }
 }
