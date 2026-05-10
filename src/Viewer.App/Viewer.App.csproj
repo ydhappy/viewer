@@ -16,4 +16,12 @@
     <AssemblyProduct>viewer</AssemblyProduct>
     <AssemblyDescription>Integrated Pak and L1 map viewer</AssemblyDescription>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="Pfim" Version="0.11.4" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="NLog" Version="6.0.7" />
+  </ItemGroup>
 </Project>
