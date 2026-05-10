@@ -9,6 +9,7 @@ public sealed class MainForm : Form
 
     private string? _currentIdxPath;
     private List<Pak.IdxRecord> _currentPakRecords = new();
+    private Pak.SpriteListCatalog? _spriteListCatalog;
 
     public MainForm()
     {
@@ -46,8 +47,10 @@ public sealed class MainForm : Form
         };
 
         var openIdxButton = new Button { Text = "IDX 열기", AutoSize = true };
+        var openSpriteListButton = new Button { Text = "list.spr 열기", AutoSize = true };
         var exportButton = new Button { Text = "선택 추출", AutoSize = true, Enabled = false };
         toolbar.Controls.Add(openIdxButton);
+        toolbar.Controls.Add(openSpriteListButton);
         toolbar.Controls.Add(exportButton);
 
         var split = new SplitContainer
@@ -182,6 +185,33 @@ public sealed class MainForm : Form
             }
         };
 
+        openSpriteListButton.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Title = "list.spr 파일 선택",
+                Filter = "SPR list files (list.spr;*.spr;*.txt;*.csv)|list.spr;*.spr;*.txt;*.csv|All files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                _spriteListCatalog = Pak.SpriteListParser.Parse(dialog.FileName);
+                specialPreview.Text = _spriteListCatalog.ToDisplayText();
+                previewTabs.SelectedIndex = 2;
+                WriteLog($"list.spr loaded: {dialog.FileName}, entries={_spriteListCatalog.Entries.Count}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "list.spr load failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WriteLog("list.spr load failed: " + ex.Message);
+            }
+        };
+
         exportButton.Click += (_, _) =>
         {
             if (string.IsNullOrEmpty(_currentIdxPath) || list.SelectedItems.Count == 0)
@@ -278,7 +308,7 @@ public sealed class MainForm : Form
                     tabs.SelectedIndex = 1;
                     break;
                 case Pak.PreviewKind.Special:
-                    specialPreview.Text = Pak.SpecialResourceAnalyzer.Analyze(record.FileName, data).ToDisplayText();
+                    specialPreview.Text = BuildSpecialPreviewText(record, data);
                     tabs.SelectedIndex = 2;
                     break;
                 case Pak.PreviewKind.Hex:
@@ -297,6 +327,64 @@ public sealed class MainForm : Form
             infoPreview.AppendText(Environment.NewLine + "Preview error: " + ex.Message);
             tabs.SelectedIndex = 3;
         }
+    }
+
+    private string BuildSpecialPreviewText(Pak.IdxRecord record, byte[] data)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(Pak.SpecialResourceAnalyzer.Analyze(record.FileName, data).ToDisplayText());
+
+        if (Path.GetExtension(record.FileName).Equals(".spr", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.AppendLine();
+            builder.AppendLine("Sprite Mapping");
+            builder.AppendLine("==============");
+
+            if (_spriteListCatalog is null)
+            {
+                builder.AppendLine("list.spr catalog is not loaded. Use 'list.spr 열기' first.");
+            }
+            else
+            {
+                var mapped = FindSpriteMapping(record);
+                if (mapped is null)
+                {
+                    builder.AppendLine("No matching list.spr entry found for this SPR record.");
+                }
+                else
+                {
+                    builder.AppendLine(mapped.ToDisplayText());
+                }
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private Pak.SpriteListEntry? FindSpriteMapping(Pak.IdxRecord record)
+    {
+        if (_spriteListCatalog is null)
+        {
+            return null;
+        }
+
+        var byIndex = _spriteListCatalog.FindBySpriteId(record.Index);
+        if (byIndex is not null)
+        {
+            return byIndex;
+        }
+
+        var nameWithoutExtension = Path.GetFileNameWithoutExtension(record.FileName);
+        if (int.TryParse(nameWithoutExtension, out var spriteId))
+        {
+            var byFileNumber = _spriteListCatalog.FindBySpriteId(spriteId);
+            if (byFileNumber is not null)
+            {
+                return byFileNumber;
+            }
+        }
+
+        return _spriteListCatalog.FindByName(nameWithoutExtension);
     }
 
     private static void ClearImage(PictureBox pictureBox)
