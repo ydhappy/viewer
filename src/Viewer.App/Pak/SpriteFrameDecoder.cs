@@ -12,7 +12,7 @@ public sealed record SpriteFrameDecodeResult(
     string DecoderName,
     string Message,
     SpriteRawPreviewResult? RawPreview
-)
+) : IDisposable
 {
     public string ToDisplayText()
     {
@@ -32,6 +32,11 @@ public sealed record SpriteFrameDecodeResult(
         }
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    public void Dispose()
+    {
+        Bitmap?.Dispose();
     }
 }
 
