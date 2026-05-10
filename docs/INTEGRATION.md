@@ -2,274 +2,59 @@
 
 ## 원칙
 
-원본 저장소를 그대로 복사하지 않고, 기능을 분석하여 우리 `viewer` 구조에 맞게 단계적으로 흡수한다.
+원본 저장소를 그대로 복사하지 않고, 기능을 분석하여 우리 `viewer` 구조에 맞게 단계적으로 흡수한다. 모든 새 파일은 UTF-8 기준으로 작성한다.
 
-## 1차 완료
+## 완료 내역 요약
+
+### 1차 ~ 5차
 
 - Windows Forms 기반 통합 앱 생성
-- PAK/IDX 탭 추가
-- S32 Map 탭 추가
-- Log 탭 추가
-- IDX 기본 파서 자리 생성
-- S32 기본 분석기 자리 생성
+- PAK/IDX, S32 Map, Log 탭 구성
+- IDX 기본 파서와 S32 기본 분석기 자리 생성
+- PAK 추출기와 선택 추출 흐름 추가
+- classic 28-byte IDX 후보 파서 추가
+- PAK 미리보기 패널 추가
+- Text/Hex/Image/Special 미리보기 추가
+- SPR/IMG/TIL/TBT 전용 리소스 감지와 헤더 정보 표시
 
-## 2차 완료
+### 6차 ~ 10차
 
-- `PakExtractor` 추가
-- `.idx` 경로 기준 `.pak` / `.PAK` 자동 탐색
-- GUI `선택 추출` 버튼 연결
-- ListView 선택 레코드 기반 추출 흐름 추가
-- 추출 성공/실패 로그 기록
-- 경로 조작 방지를 위한 안전 파일명 처리 추가
+- S32 좌표 추정과 지도 폴더 스캔 추가
+- Tile.idx 연동 상태 표시 추가
+- S32 Layer1 후보 Tile ID 샘플 파서 추가
+- Render 탭 확대/축소, hover/selected tile 표시 추가
+- Render PNG 저장, 선택 Tile 정보 복사, S32 분석 TXT 저장, 지도 스캔 CSV 저장 추가
 
-## 3차 완료
+### 11차 ~ 15차
 
-- PakViewer의 `L1PakTools.IndexRecord` 구조를 참고하여 classic 28-byte IDX 후보 파서 추가
-- classic record 구조: `offset(4) + filename(20) + size(4)`
-- PAK 파일 크기 기준으로 추출 가능 여부 검증
-- `IdxRecord`에 `CanExtract`, `Format` 메타데이터 추가
-- GUI 목록에 `Extract`, `Format` 컬럼 추가
-- 추출 가능한 레코드가 선택된 경우에만 `선택 추출` 활성화
-- 추출 불가 레코드는 건너뛰고 로그 기록
+- `Viewer.sln`, build/run 스크립트, README, Known Issues 문서 추가
+- Tile 레코드 목록/검색 UI 추가
+- Tile 변환 후보 분류와 직접 이미지 변환 구조 추가
+- Tile converter registry 추가
+- Tile diagnostics analyzer와 HEX preview 추가
 
-## 4차 완료
+### 16차 ~ 20차
 
-- `PakExtractor.ReadBytes` 추가
-- 선택 레코드를 추출 없이 메모리로 읽는 구조 추가
-- `PreviewHelper` 추가
-- 확장자/시그니처 기반 PreviewKind 판별
-- 텍스트 미리보기 추가
-- PNG/BMP/JPG/GIF 이미지 미리보기 추가
-- 작은 바이너리 파일용 HEX 미리보기 추가
-- PAK 탭을 좌측 목록 / 우측 Preview 패널 구조로 개편
-- Preview 패널에 Text/Hex, Image, Info 탭 추가
+- 문서/빌드 설정 안정화
+- TIL/IMG Raw Byte 진단 이미지 변환 추가
+- Tile 변환 결과 이미지 저장/복사 추가
+- list.spr parser와 Sprite list catalog 추가
+- PAK 탭에서 list.spr 로드 및 `.spr` 매핑 표시 추가
+- Sprite 전용 탭과 `SpriteResourcePanel` 추가
+- Sprite entry 검색, PAK `.spr` record 역매핑, renderer placeholder 추가
 
-## 5차 완료
+### 21차 ~ 25차
 
-- `SpecialResourceInfo` 추가
-- `SpecialResourceAnalyzer` 추가
-- `.spr`, `.img`, `.til`, `.tbt` 확장자 감지 추가
-- `PreviewKind.Special` 추가
-- Preview 패널에 `Special` 탭 추가
-- 전용 리소스 선택 시 종류, 확장자, 크기, 헤더 HEX 정보 표시
-- SPR/IMG/TIL/TBT 렌더링 연결을 위한 자리 구성
+- Sprite 패널에 SPR 진단/추출/정보 저장 추가
+- SPR 바이트 HEX preview 추가
+- SPR header candidate analysis 추가
+- frame count / direction / palette / frame bytes 후보 추정 추가
+- SPR raw byte 저장 추가
+- SPR Raw Preview 탭 추가
+- width / offset / frame index / zoom 수동 조정 추가
+- README/KNOWN_ISSUES에 Sprite/SPR 기능과 한계 반영
 
-## 6차 완료
-
-- `S32Coordinate` 추가
-- `S32Info`에 파일명, 좌표, 레이어 후보 요약 추가
-- S32 파일명 기반 좌표 추정 추가
-- S32 폴더 스캔 기능 추가
-- 지도 목록 테이블 추가
-- S32 Map 탭을 좌측 목록 / 우측 Preview 패널 구조로 개편
-- Preview 패널에 Info / Render 탭 추가
-- Tile.idx 연동 전용 렌더링 자리 구성
-
-## 7차 완료
-
-- `TileResourceSet` 추가
-- Tile.idx 선택 기능 추가
-- Tile.idx 기준 Tile.pak 자동 탐색 상태 표시
-- Tile.idx 레코드 수 / 추출 가능 레코드 수 표시
-- `S32GridRenderPanel` 추가
-- Render 탭에 임시 Iso Grid 렌더링 추가
-- 선택된 S32 정보와 Tile 리소스 상태를 렌더 오버레이에 표시
-- Map Preview 탭에 Tile 상태 탭 추가
-
-## 8차 완료
-
-- `S32LayerSample` 추가
-- `S32LayerParser` 추가
-- S32 파일 앞부분에서 Layer1 후보 Tile ID 샘플 읽기 추가
-- Render 탭에서 Layer1 Tile ID 기반 색상 그리드 표시
-- Layer1 샘플이 없을 경우 기존 임시 Iso Grid로 fallback
-- Render 오버레이에 Layer1 샘플 개수/읽은 바이트 표시
-
-## 9차 완료
-
-- Render 탭 확대/축소 배율 추가
-- 마우스 휠 기반 줌 추가
-- 툴바 확대/축소/100% 버튼 추가
-- Layer1 색상 그리드 셀 크기 조절 추가
-- 마우스 위치 기준 Tile 좌표/Tile ID 표시
-- 클릭한 Tile 좌표/Tile ID 선택 표시
-- Hover Tile은 흰색 테두리, Selected Tile은 노란색 테두리로 표시
-
-## 10차 완료
-
-- Render 화면 PNG 저장 기능 추가
-- 현재 Hover/Selected Tile 정보 클립보드 복사 기능 추가
-- S32 분석 결과 텍스트 저장 기능 추가
-- 지도 폴더 스캔 결과 CSV 저장 기능 추가
-- CSV UTF-8 저장 및 기본 escape 처리 추가
-- Render 패널 스냅샷/선택 Tile 정보 API 추가
-
-## 11차 완료
-
-- `Viewer.sln` 솔루션 파일 추가
-- `scripts/build.ps1` 빌드 스크립트 추가
-- `scripts/run.ps1` 실행 스크립트 추가
-- README를 현재 기능 기준으로 갱신
-- `docs/KNOWN_ISSUES.md` 추가
-- 요구 환경, 실행 방법, 알려진 제한사항 정리
-
-## 12차 완료
-
-- `TileResourceSet`에 Tile 레코드 목록 보관 추가
-- Tile ID 기준 레코드 탐색 기능 추가
-- `ITileImageCache` / `NullTileImageCache` 추가
-- `TileRecordLookup` 추가
-- `TileResourcePanel` 추가
-- Map 탭의 Tile 페이지를 레코드 목록/검색 UI로 교체
-- Tile.idx 로드 시 최대 5,000개 레코드 표시
-- Tile ID 검색 및 레코드 상세 표시 추가
-- 실제 Tile 이미지 변환 실패 시 색상 그리드 fallback을 유지할 구조 마련
-
-## 13차 완료
-
-- `TileConversionCandidate` 추가
-- `TileConversionResult` 추가
-- `TileResourceClassifier` 추가
-- `DefaultTileImageCache` 추가
-- Tile 레코드 확장자 기반 변환 후보 분류 추가
-- PNG/BMP/JPG/JPEG/GIF 직접 이미지 변환 우선 지원
-- SPR/IMG/TIL/TBT는 전용 변환기 필요 상태로 명확히 표시
-- Tile 검색/변환 시 변환 성공/실패 사유 표시
-- 직접 이미지 변환 성공 시 Tile 패널 Image 탭에 미리보기 표시
-- Tile 패널 레코드 목록에 Kind 컬럼 추가
-
-## 14차 완료
-
-- `ITileResourceConverter` 인터페이스 추가
-- `DirectImageTileResourceConverter` 추가
-- `PlaceholderTileResourceConverter` 추가
-- `UnsupportedTileResourceConverter` 추가
-- `TileResourceConverterRegistry` 추가
-- DirectImage/TIL/IMG/SPR/TBT/Text 변환기 등록 파이프라인 추가
-- `DefaultTileImageCache`가 변환기 레지스트리에서 적절한 변환기를 선택하도록 변경
-- 변환 결과에 `ConverterName` 표시 추가
-- Tile 패널에 `변환기 목록` 버튼 추가
-- Tile 레코드 선택 시 사용될 변환기 이름 표시
-
-## 15차 완료
-
-- `TileResourceDiagnostics` 추가
-- `TileResourceDiagnosticsAnalyzer` 추가
-- Tile 리소스 바이트 HEX preview 기능 추가
-- PNG/BMP/JPEG/GIF 시그니처 감지 추가
-- TIL/IMG/SPR/TBT/Text/Binary 후보별 진단 Summary 추가
-- Tile 패널에 `진단` 버튼 추가
-- 선택 레코드의 헤더/HEX/후보 분석 결과 표시
-- 실제 TIL/IMG/SPR 변환 전 포맷 분석 기반 마련
-
-## 16차 완료
-
-- `Viewer.App.csproj`의 Windows Forms / nullable / implicit usings 설정 확인
-- Tile 변환/진단 관련 생성자 변경 영향 확인
-- README에 Tile Resource 기능, 변환기, 진단 기능 반영
-- `KNOWN_ISSUES.md`에 Tile ID 매핑, 변환기 한계, 빌드 검증 제한사항 반영
-- 다음 실제 포맷 이식 전 문서 기준점 정리
-
-## 17차 완료
-
-- 원본 PakViewer의 리소스 처리 흐름을 `frmMain.cs` 중심으로 재확인
-- TIL/IMG는 실제 포맷 변환 전 단계로 Raw Byte 진단 이미지 변환기를 우선 추가
-- `RawByteDiagnosticTileResourceConverter` 추가
-- TIL/IMG 후보 선택 시 회색조 데이터 패턴 이미지 생성
-- 실제 렌더링이 아닌 진단 이미지임을 결과 메시지와 Known Issues에 명확히 표시
-- TIL/IMG 변환 실패 시 기존 진단/HEX/fallback 흐름 유지
-
-## 18차 완료
-
-- RawByteDiagnostic 변환기에 최대 1MB 리소스 제한 추가
-- RawByteDiagnostic 이미지 최대 높이 제한 정리
-- Tile 패널에 `이미지 저장` 버튼 추가
-- Tile 패널에 `이미지 복사` 버튼 추가
-- 변환 결과 이미지를 PNG로 저장하는 기능 추가
-- 변환 결과 이미지를 클립보드에 복사하는 기능 추가
-- Known Issues에 Raw Byte 진단 이미지 크기 제한과 저장/복사 범위 기록
-
-## 19차 완료
-
-- `SpriteListEntry` 추가
-- `SpriteListCatalog` 추가
-- `SpriteListParser` 추가
-- PAK 탭에 `list.spr 열기` 버튼 추가
-- list.spr 텍스트/CSV/탭/공백 구분 후보 파싱 추가
-- SPR ID / 이름 기반 매핑 구조 추가
-- `.spr` 리소스 선택 시 Special 탭에 list.spr 매핑 정보 표시
-- 실제 SPR 렌더러 이식 전 Sprite 그룹/액션/프레임 데이터 흐름 구성
-
-## 20차 완료
-
-- `SpriteResourcePanel` 추가
-- Sprite 전용 탭 추가
-- list.spr entry 전용 ListView 추가
-- Sprite ID / 이름 / 그룹 / 액션 검색 기능 추가
-- 선택한 list.spr entry와 PAK `.spr` record 역매핑 표시
-- SPR renderer placeholder 패널 추가
-- IDX 로드 시 Sprite 패널에 PAK 레코드 전달
-- list.spr 로드 시 Sprite 패널에 catalog 전달
-- 실제 SPR 프레임 디코더 이식 전 전용 UI 흐름 구성
-
-## 21차 완료
-
-- Sprite 패널에 `SPR 진단` 버튼 추가
-- Sprite 패널에 `SPR 추출` 버튼 추가
-- Sprite 패널에 `정보 저장` 버튼 추가
-- IDX 로드 시 Sprite 패널에 IDX 경로 전달
-- 선택한 Sprite entry의 매핑된 `.spr` 바이트 HEX preview 추가
-- 매핑된 `.spr` 리소스 개별 추출 기능 추가
-- Sprite 매핑/진단 정보 TXT 저장 기능 추가
-- 실제 SPR 프레임 디코더 이식 전 검증 편의 기능 구성
-
-## 22차 완료
-
-- 원본 PakViewer의 SPR 디코더 위치를 재검색했으나 독립 디코더 파일은 확인되지 않음
-- `SpriteHeaderAnalysis` 추가
-- `SpriteHeaderAnalyzer` 추가
-- SPR 바이트 기반 헤더 후보 분석 추가
-- Frame Count / Direction Count / Palette Size / Frame Bytes 후보 추정 추가
-- 분석 confidence와 notes 표시 추가
-- Sprite 패널 `SPR 진단` 결과에 헤더 후보 분석 표시 추가
-- 실제 SPR 구조라고 단정하지 않고 디코더 이식 전 후보 분석으로 명확히 분리
-
-## 23차 완료
-
-- `SpriteRawPreviewResult` 추가
-- `SpriteRawPreviewBuilder` 추가
-- Sprite 패널에 `Raw Preview` 탭 추가
-- Sprite 패널에 `Raw 저장` 버튼 추가
-- Sprite 패널에 `Preview 저장` 버튼 추가
-- SPR 진단 시 후보 payload 회색조 preview 생성
-- SPR raw byte 저장 기능 추가
-- SPR raw preview PNG 저장 기능 추가
-- 실제 SPR 렌더링 전 시각 검증 흐름 구성
-
-## 24차 완료
-
-- `SpriteRawPreviewOptions` 추가
-- Raw preview builder에 수동 width/offset/frame index/zoom 옵션 추가
-- Sprite 패널 Raw Preview 탭에 width 입력 추가
-- Sprite 패널 Raw Preview 탭에 payload offset 입력 추가
-- Sprite 패널 Raw Preview 탭에 frame index 입력 추가
-- Sprite 패널 Raw Preview 탭에 이전/다음 frame 이동 버튼 추가
-- Sprite 패널 Raw Preview 탭에 zoom percent 입력 추가
-- `Preview 갱신` 버튼 추가
-- nearest-neighbor 확대 적용으로 raw pixel 패턴 확인성 보강
-- 실제 SPR 프레임 디코더 이식 전 수동 검증 도구 강화
-
-## 25차 완료
-
-- `Viewer.App.csproj`의 Windows Forms / nullable / implicit usings 설정 재확인
-- README에 Sprite 탭 기능 반영
-- README에 SPR 헤더 후보 분석 / Raw Preview / 수동 width-offset-frame-zoom 조정 기능 반영
-- README 프로젝트 구조에 Sprite 관련 파일 추가
-- `KNOWN_ISSUES.md`에 Sprite / SPR 제한사항 섹션 추가
-- SPR Raw Preview가 실제 렌더링이 아닌 후보 payload 시각화임을 문서화
-- 다음 실제 SPR 디코더 이식 전 안정화 기준점 정리
-
-## 26차 완료
+### 26차 완료
 
 - PakViewer 원본에서 SPR/list.spr/이미지 처리 후보를 재탐색했으나 독립 SPR decoder 파일은 확인되지 않음
 - `SpriteFrameDecodeRequest` 추가
@@ -282,7 +67,7 @@
 - 등록 decoder 목록을 Sprite 패널 Detail에 표시
 - 실제 SPR 디코더를 별도 구현체로 추가할 수 있는 구조 마련
 
-## 27차 완료
+### 27차 완료
 
 - `GlobalUsings.cs` 추가
 - WinForms / Drawing / LINQ / IO 공통 namespace 전역 using 정리
@@ -291,11 +76,55 @@
 - `KNOWN_ISSUES.md`에 decoder registry와 RawPreview fallback decoder 한계 반영
 - 디코더 구조 안정화 및 향후 실제 SPR decoder 교체 준비
 
-현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
+### 28차 완료
+
+- PakViewer 원본에서 IDX decode / CorePakTools / `_EXTB$` 관련 후보 재탐색
+- 원본 검색 결과 `PakReader.cs`, `frmMain.cs`, `Backup/frmMain.cs`가 IDX/PAK 처리 후보로 확인됨
+- 기존 `IdxParser` 내부에 섞여 있던 classic-28 / fallback 파싱 로직을 전략 구조로 분리
+- `IdxParseContext` 추가
+- `IIdxParserStrategy` 인터페이스 추가
+- `Classic28IdxParserStrategy` 추가
+- `ExtbHeaderProbeIdxParserStrategy` 추가
+- `FallbackIdxParserStrategy` 추가
+- `IdxParserStrategyRegistry` 추가
+- `IdxParserUtilities` 추가
+- 기존 `IdxParser.Parse()`가 strategy registry를 통해 동작하도록 변경
+- classic-28 기존 동작 유지
+- `_EXTB$` 확장 IDX는 실제 해석이 아닌 marker probe 단계로 명확히 분리
+- README에 IDX parser registry와 `_EXTB$` probe 반영
+- KNOWN_ISSUES에 IDX strategy registry와 확장/보호 IDX 한계 반영
+
+## 현재 적용 상태
+
+### PAK / IDX
+
+- IDX parser registry 구조 적용 완료
+- classic-28 실제 후보 파싱 지원
+- `_EXTB$` marker probe 지원
+- fallback binary/text 후보 표시 지원
+- PAK 자동 탐색 및 선택 추출 지원
+- Text/Image/Hex/Special 미리보기 지원
+
+### Sprite / SPR
+
+- list.spr catalog/parsing 지원
+- Sprite entry 검색과 `.spr` record 역매핑 지원
+- SPR 진단, HEX preview, raw byte 저장 지원
+- SPR header 후보 분석 지원
+- Raw Preview 수동 검증 도구 지원
+- `ISpriteFrameDecoder` registry 구조 지원
+- 실제 SPR 프레임 디코더는 아직 미구현
+
+### Tile / Map
+
+- Tile.idx 검색/진단/변환 후보 구조 지원
+- TIL/IMG Raw Byte 진단 이미지 지원
+- S32 Layer1 후보 샘플 렌더링 지원
+- 실제 Tile 이미지 기반 S32 렌더링은 아직 미구현
 
 ## PakViewer 흡수 대상
 
-PakViewer의 `frmMain.cs`는 다음 역할을 포함한다.
+PakViewer의 주요 흡수 대상은 다음과 같다.
 
 - 클라이언트 폴더 선택
 - `.idx` 파일 스캔
@@ -303,19 +132,11 @@ PakViewer의 `frmMain.cs`는 다음 역할을 포함한다.
 - Text/Image/Sprite/SprList/DAT/Gallery 모드
 - export/update/delete/rebuild 계열 도구
 - list.spr 기반 Sprite 분류
-
-우리 viewer에서는 다음 순서로 이식한다.
-
-1. IDX 레코드 파서 정교화
-2. PAK 추출기 추가
-3. Text/Image 미리보기
-4. SPR/IMG/TIL 뷰어
-5. DAT/Gallery 모드
-6. Rebuild/Update 기능
+- 보호/확장 IDX decode 후보
 
 ## L1MapViewer 흡수 대상
 
-L1MapViewer README 기준 핵심 기능은 다음과 같다.
+L1MapViewer의 주요 흡수 대상은 다음과 같다.
 
 - S32 지도 파일 로딩
 - Layer1/2/3/4/5/7 다중 레이어 표시
@@ -326,27 +147,18 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 - PNG Export
 - CLI info/extract/render/benchmark
 
-우리 viewer에서는 다음 순서로 이식한다.
-
-1. S32 파일 구조 파서
-2. 지도 폴더 스캔 및 좌표 인식
-3. Tile.idx 연동
-4. 기본 렌더링
-5. 레이어 ON/OFF
-6. 편집/저장
-7. PNG Export
-
 ## 다음 단계
 
-28차에서는 IDX 보호/확장 포맷 대응으로 방향을 전환한다.
+29차에서는 IDX parser registry를 UI/진단에 더 노출한다.
 
-- PakViewer 원본의 IDX decode / CorePakTools 후보 재탐색
-- classic-28 외 header/record 구조 후보 분리
-- `IIdxParserStrategy` 구조 추가
-- 보호/확장 IDX 이식 전 파서 registry 준비
+- PAK 탭 Info 또는 Log에 등록 IDX strategy 목록 표시
+- IDX 로드 시 어떤 strategy가 선택됐는지 표시
+- `IdxParseResult` 모델 추가 검토
+- `_EXTB$` probe 결과를 사용자가 명확히 볼 수 있도록 표시
+- 이후 보호/확장 IDX 실제 record parser 이식 준비
 
 ## 주의사항
 
-- 원본은 중국어/영어 UI가 섞여 있으므로 우리 viewer는 한글 UI를 기본으로 한다.
-- 모든 새 파일은 UTF-8로 작성한다.
-- 대용량 기능은 한 번에 병합하지 않고 작은 커밋 단위로 진행한다.
+- classic-28 외 보호/확장 IDX는 아직 실제 추출 가능한 record로 해석하지 않는다.
+- `_EXTB$`는 현재 marker probe이며 실제 확장 레코드 구조 파서는 아니다.
+- Raw Preview 계열 기능은 실제 렌더링이 아니라 디코더 이식 전 검증 도구다.
