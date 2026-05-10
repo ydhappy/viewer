@@ -17,6 +17,7 @@ public sealed class NullTileImageCache : ITileImageCache
             candidate,
             false,
             null,
+            "NullCache",
             "Tile 이미지 캐시가 연결되지 않았습니다.");
     }
 }
