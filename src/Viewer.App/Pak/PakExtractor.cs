@@ -48,15 +48,15 @@ public static class PakExtractor
         }
 
         using var input = new FileStream(pakPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        var bytesToRead = record.Compression == 0 ? record.Size : record.CompressedSize.GetValueOrDefault();
+        var bytesToRead = GetBytesToRead(record);
         if (bytesToRead <= 0)
         {
-            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("압축 레코드의 읽기 크기를 계산할 수 없습니다.", record, pakPath, pakSize));
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage(BuildPackedSizeFailureReason(record), record, pakPath, pakSize));
         }
 
         if (record.Offset + bytesToRead > input.Length)
         {
-            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("레코드 범위가 PAK 파일 크기를 초과합니다.", record, pakPath, pakSize));
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("PAK range overflow: record offset + packed size exceeds PAK file size.", record, pakPath, pakSize));
         }
 
         input.Seek(record.Offset, SeekOrigin.Begin);
@@ -67,22 +67,16 @@ public static class PakExtractor
         }
         catch (Exception ex)
         {
-            throw new IOException(PakRecordDiagnostics.BuildFailureMessage("PAK 레코드 바이트 읽기에 실패했습니다.", record, pakPath, pakSize, ex), ex);
+            throw new IOException(PakRecordDiagnostics.BuildFailureMessage("PAK read failed: could not read the requested record byte range.", record, pakPath, pakSize, ex), ex);
         }
 
         try
         {
-            return record.Compression switch
-            {
-                0 => TrimUncompressed(data, record.Size),
-                1 => DecompressZlib(data, record.Size),
-                2 => DecompressBrotli(data, record.Size),
-                _ => throw new NotSupportedException($"지원하지 않는 ExtB compression type입니다: {record.Compression}")
-            };
+            return DecodeRecordData(data, record);
         }
         catch (Exception ex)
         {
-            throw new InvalidDataException(PakRecordDiagnostics.BuildFailureMessage("PAK 레코드 압축 해제/변환에 실패했습니다.", record, pakPath, pakSize, ex), ex);
+            throw new InvalidDataException(PakRecordDiagnostics.BuildFailureMessage(BuildDecodeFailureReason(record), record, pakPath, pakSize, ex), ex);
         }
     }
 
@@ -101,6 +95,40 @@ public static class PakExtractor
         var data = ReadBytes(pakPath, record);
         File.WriteAllBytes(outputPath, data);
         return outputPath;
+    }
+
+    private static int GetBytesToRead(IdxRecord record)
+    {
+        return record.Compression == 0 ? record.Size : record.CompressedSize.GetValueOrDefault();
+    }
+
+    private static byte[] DecodeRecordData(byte[] data, IdxRecord record)
+    {
+        return record.Compression switch
+        {
+            0 => TrimUncompressed(data, record.Size),
+            1 => DecompressZlib(data, record.Size),
+            2 => DecompressBrotli(data, record.Size),
+            _ => throw new NotSupportedException($"Unsupported ExtB compression type: {record.Compression}")
+        };
+    }
+
+    private static string BuildPackedSizeFailureReason(IdxRecord record)
+    {
+        return record.Compression == 0
+            ? "Invalid raw record size: unpacked size must be greater than zero."
+            : "Packed size missing: compressed record does not have a calculated packed byte size.";
+    }
+
+    private static string BuildDecodeFailureReason(IdxRecord record)
+    {
+        return record.Compression switch
+        {
+            0 => "Raw record conversion failed.",
+            1 => "Zlib decompression failed: compression type 1 data could not be decoded.",
+            2 => "Brotli decompression failed: compression type 2 data could not be decoded.",
+            _ => $"Unsupported compression type: {record.Compression}."
+        };
     }
 
     private static byte[] TrimUncompressed(byte[] data, int expectedSize)
