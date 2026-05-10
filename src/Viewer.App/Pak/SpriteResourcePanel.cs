@@ -13,12 +13,20 @@ public sealed class SpriteResourcePanel : UserControl
     private readonly TextBox _detailBox = new();
     private readonly Panel _renderPlaceholder = new();
     private readonly PictureBox _rawPreviewBox = new();
+    private readonly NumericUpDown _previewWidthBox = new();
+    private readonly NumericUpDown _previewOffsetBox = new();
+    private readonly NumericUpDown _previewFrameBox = new();
+    private readonly NumericUpDown _previewZoomBox = new();
+    private readonly Button _refreshPreviewButton = new();
+    private readonly Button _framePrevButton = new();
+    private readonly Button _frameNextButton = new();
 
     private SpriteListCatalog? _catalog;
     private IReadOnlyList<IdxRecord> _records = Array.Empty<IdxRecord>();
     private IReadOnlyList<SpriteListEntry> _visibleEntries = Array.Empty<SpriteListEntry>();
     private string? _idxPath;
     private byte[]? _lastSprBytes;
+    private SpriteHeaderAnalysis? _lastAnalysis;
     private SpriteRawPreviewResult? _lastRawPreview;
 
     public SpriteResourcePanel()
@@ -100,9 +108,11 @@ public sealed class SpriteResourcePanel : UserControl
         _rawPreviewBox.BackColor = Color.Black;
         _rawPreviewBox.SizeMode = PictureBoxSizeMode.Zoom;
 
+        var rawPreviewLayout = CreateRawPreviewLayout();
+
         rightTabs.TabPages.Add(new TabPage("Detail") { Controls = { _detailBox } });
         rightTabs.TabPages.Add(new TabPage("Render") { Controls = { _renderPlaceholder } });
-        rightTabs.TabPages.Add(new TabPage("Raw Preview") { Controls = { _rawPreviewBox } });
+        rightTabs.TabPages.Add(new TabPage("Raw Preview") { Controls = { rawPreviewLayout } });
 
         split.Panel1.Controls.Add(_entryList);
         split.Panel2.Controls.Add(rightTabs);
@@ -117,6 +127,23 @@ public sealed class SpriteResourcePanel : UserControl
         _saveInfoButton.Click += (_, _) => SaveCurrentInfo();
         _saveRawButton.Click += (_, _) => SaveCurrentRawBytes();
         _savePreviewButton.Click += (_, _) => SaveCurrentRawPreview();
+        _refreshPreviewButton.Click += (_, _) => RefreshRawPreview(rightTabs);
+        _framePrevButton.Click += (_, _) =>
+        {
+            if (_previewFrameBox.Value > _previewFrameBox.Minimum)
+            {
+                _previewFrameBox.Value -= 1;
+            }
+            RefreshRawPreview(rightTabs);
+        };
+        _frameNextButton.Click += (_, _) =>
+        {
+            if (_previewFrameBox.Value < _previewFrameBox.Maximum)
+            {
+                _previewFrameBox.Value += 1;
+            }
+            RefreshRawPreview(rightTabs);
+        };
         _filterBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -126,6 +153,62 @@ public sealed class SpriteResourcePanel : UserControl
             }
         };
         _entryList.SelectedIndexChanged += (_, _) => ShowSelectedEntry();
+    }
+
+    private Control CreateRawPreviewLayout()
+    {
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var bar = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            Padding = new Padding(8)
+        };
+
+        ConfigureNumeric(_previewWidthBox, 0, 2048, 0, 70);
+        ConfigureNumeric(_previewOffsetBox, 0, 10_000_000, 0, 90);
+        ConfigureNumeric(_previewFrameBox, 0, 100_000, 0, 80);
+        ConfigureNumeric(_previewZoomBox, 25, 1600, 100, 70);
+
+        _framePrevButton.Text = "이전";
+        _framePrevButton.AutoSize = true;
+        _frameNextButton.Text = "다음";
+        _frameNextButton.AutoSize = true;
+        _refreshPreviewButton.Text = "Preview 갱신";
+        _refreshPreviewButton.AutoSize = true;
+
+        bar.Controls.Add(new Label { Text = "Width(0=auto)", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
+        bar.Controls.Add(_previewWidthBox);
+        bar.Controls.Add(new Label { Text = "Offset", AutoSize = true, Padding = new Padding(8, 6, 4, 0) });
+        bar.Controls.Add(_previewOffsetBox);
+        bar.Controls.Add(new Label { Text = "Frame", AutoSize = true, Padding = new Padding(8, 6, 4, 0) });
+        bar.Controls.Add(_previewFrameBox);
+        bar.Controls.Add(_framePrevButton);
+        bar.Controls.Add(_frameNextButton);
+        bar.Controls.Add(new Label { Text = "Zoom%", AutoSize = true, Padding = new Padding(8, 6, 4, 0) });
+        bar.Controls.Add(_previewZoomBox);
+        bar.Controls.Add(_refreshPreviewButton);
+
+        layout.Controls.Add(bar, 0, 0);
+        layout.Controls.Add(_rawPreviewBox, 0, 1);
+        return layout;
+    }
+
+    private static void ConfigureNumeric(NumericUpDown box, int minimum, int maximum, int value, int width)
+    {
+        box.Minimum = minimum;
+        box.Maximum = maximum;
+        box.Value = value;
+        box.Width = width;
+        box.ThousandsSeparator = true;
     }
 
     public void SetCatalog(SpriteListCatalog catalog)
@@ -291,10 +374,11 @@ public sealed class SpriteResourcePanel : UserControl
             var pakPath = PakExtractor.ResolvePakPath(_idxPath);
             var data = PakExtractor.ReadBytes(pakPath, record);
             var analysis = SpriteHeaderAnalyzer.Analyze(data);
-            var preview = SpriteRawPreviewBuilder.Build(data, analysis);
             _lastSprBytes = data;
-            _lastRawPreview = preview;
-            _rawPreviewBox.Image = new Bitmap(preview.Bitmap);
+            _lastAnalysis = analysis;
+            ResetManualPreviewOptions(data, analysis);
+            var preview = BuildPreviewFromControls();
+            SetRawPreview(preview);
 
             _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine +
                 "SPR Byte Diagnostics" + Environment.NewLine +
@@ -315,6 +399,59 @@ public sealed class SpriteResourcePanel : UserControl
         {
             _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 진단 실패: " + ex.Message;
         }
+    }
+
+    private void ResetManualPreviewOptions(byte[] data, SpriteHeaderAnalysis analysis)
+    {
+        _previewWidthBox.Value = 0;
+        _previewOffsetBox.Maximum = Math.Max(0, data.Length - 1);
+        _previewOffsetBox.Value = Math.Min(_previewOffsetBox.Maximum, 32);
+        _previewFrameBox.Value = 0;
+        _previewZoomBox.Value = 100;
+
+        if (analysis.CandidateFrameCount is > 0)
+        {
+            _previewFrameBox.Maximum = Math.Max(0, analysis.CandidateFrameCount.Value - 1);
+        }
+        else
+        {
+            _previewFrameBox.Maximum = 100_000;
+        }
+    }
+
+    private SpriteRawPreviewResult BuildPreviewFromControls()
+    {
+        var data = _lastSprBytes ?? Array.Empty<byte>();
+        var analysis = _lastAnalysis ?? SpriteHeaderAnalyzer.Analyze(data);
+        var options = new SpriteRawPreviewOptions(
+            _previewWidthBox.Value > 0 ? (int)_previewWidthBox.Value : null,
+            (int)_previewOffsetBox.Value,
+            (int)_previewFrameBox.Value,
+            (double)_previewZoomBox.Value / 100.0);
+        return SpriteRawPreviewBuilder.Build(data, analysis, options);
+    }
+
+    private void RefreshRawPreview(TabControl rightTabs)
+    {
+        if (_lastSprBytes is null || _lastAnalysis is null)
+        {
+            _detailBox.Text += Environment.NewLine + Environment.NewLine + "갱신할 SPR raw preview가 없습니다. 먼저 SPR 진단을 실행하세요.";
+            return;
+        }
+
+        var preview = BuildPreviewFromControls();
+        SetRawPreview(preview);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + preview.ToDisplayText();
+        rightTabs.SelectedIndex = 2;
+    }
+
+    private void SetRawPreview(SpriteRawPreviewResult preview)
+    {
+        _lastRawPreview = preview;
+        var oldImage = _rawPreviewBox.Image;
+        using var zoomed = SpriteRawPreviewBuilder.ApplyZoom(preview.Bitmap, preview.Zoom);
+        _rawPreviewBox.Image = new Bitmap(zoomed);
+        oldImage?.Dispose();
     }
 
     private void ExtractSelectedSpr()
@@ -476,6 +613,7 @@ public sealed class SpriteResourcePanel : UserControl
     private void ClearRawPreview()
     {
         _lastSprBytes = null;
+        _lastAnalysis = null;
         _lastRawPreview = null;
         var oldImage = _rawPreviewBox.Image;
         _rawPreviewBox.Image = null;
@@ -496,7 +634,7 @@ public sealed class SpriteResourcePanel : UserControl
         graphics.DrawString("SPR Renderer Placeholder", titleFont, titleBrush, 32, 24);
         graphics.DrawString("list.spr entry와 PAK .spr record 매핑은 준비되었습니다.", font, brush, 44, 92);
         graphics.DrawString("SPR 진단/추출/정보 저장/raw 저장/preview 저장 기능도 연결되었습니다.", font, brush, 44, 118);
-        graphics.DrawString("Raw Preview 탭에서 후보 payload 회색조 preview를 확인할 수 있습니다.", font, brush, 44, 144);
+        graphics.DrawString("Raw Preview 탭에서 width/offset/frame/zoom을 수동 조정할 수 있습니다.", font, brush, 44, 144);
         graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 170);
     }
 }
