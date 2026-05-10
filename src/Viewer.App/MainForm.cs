@@ -328,6 +328,9 @@ public sealed class MainForm : Form
         var openMapButton = new Button { Text = "S32 열기", AutoSize = true };
         var openFolderButton = new Button { Text = "지도 폴더 스캔", AutoSize = true };
         var openTileButton = new Button { Text = "Tile.idx 열기", AutoSize = true };
+        var zoomInButton = new Button { Text = "확대", AutoSize = true };
+        var zoomOutButton = new Button { Text = "축소", AutoSize = true };
+        var resetZoomButton = new Button { Text = "100%", AutoSize = true };
         var tileStatusLabel = new Label
         {
             Text = "Tile: not loaded",
@@ -338,6 +341,9 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(openMapButton);
         toolbar.Controls.Add(openFolderButton);
         toolbar.Controls.Add(openTileButton);
+        toolbar.Controls.Add(zoomInButton);
+        toolbar.Controls.Add(zoomOutButton);
+        toolbar.Controls.Add(resetZoomButton);
         toolbar.Controls.Add(tileStatusLabel);
 
         var split = new SplitContainer
@@ -390,6 +396,22 @@ public sealed class MainForm : Form
 
         split.Panel1.Controls.Add(mapList);
         split.Panel2.Controls.Add(mapPreviewTabs);
+
+        zoomInButton.Click += (_, _) =>
+        {
+            mapRenderPanel.ZoomIn();
+            mapPreviewTabs.SelectedIndex = 1;
+        };
+        zoomOutButton.Click += (_, _) =>
+        {
+            mapRenderPanel.ZoomOut();
+            mapPreviewTabs.SelectedIndex = 1;
+        };
+        resetZoomButton.Click += (_, _) =>
+        {
+            mapRenderPanel.ResetZoom();
+            mapPreviewTabs.SelectedIndex = 1;
+        };
 
         mapList.SelectedIndexChanged += (_, _) =>
         {
