@@ -272,6 +272,30 @@ public sealed class TileResourceConverterRegistry
         return _converters.First(converter => converter.CanConvert(candidate, record));
     }
 
+    public TileConversionResult ConvertWithFallback(int tileId, TileResourceSet tileResourceSet, IdxRecord record, TileConversionCandidate candidate)
+    {
+        var primary = Select(candidate, record);
+        var primaryResult = primary.Convert(tileId, tileResourceSet, record, candidate);
+        if (primaryResult.Success || candidate.Kind != TileResourceKind.Tile || primary.Name == "RawByteDiagnostic")
+        {
+            return primaryResult;
+        }
+
+        var fallback = _converters.FirstOrDefault(converter => converter.Name == "RawByteDiagnostic" && converter.CanConvert(candidate, record));
+        if (fallback is null)
+        {
+            return primaryResult;
+        }
+
+        var fallbackResult = fallback.Convert(tileId, tileResourceSet, record, candidate);
+        if (!fallbackResult.Success)
+        {
+            return primaryResult.WithMessagePrefix("Primary converter failed and RawByte fallback also failed.");
+        }
+
+        return fallbackResult.WithMessagePrefix("Primary L1TIL converter failed; RawByte diagnostic fallback was used." + Environment.NewLine + primaryResult.Message);
+    }
+
     public string ToDisplayText()
     {
         return string.Join(Environment.NewLine,
