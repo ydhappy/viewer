@@ -56,12 +56,14 @@ public static class PakDeleteRebuildService
 
         if (!rebuild.Success)
         {
-            return new PakDeleteRebuildResult(
+            var failed = new PakDeleteRebuildResult(
                 false,
                 "PAK rebuild failed. IDX was not written.",
                 deletePlan,
                 rebuild,
                 new IdxWriteResult(false, "IDX write skipped because PAK rebuild failed.", IdxWriter.GetDefaultRebuiltIdxPath(idxPath), 0, 0));
+            WriteDiagnostics(failed);
+            return failed;
         }
 
         var idxWrite = IdxWriter.WriteClassic28ForRebuild(idxPath, rebuild, overwriteOutputs);
@@ -104,10 +106,15 @@ public static class PakDeleteRebuildService
     {
         try
         {
-            PakEditDiagnostics.AppendFailure(
+            PakEditDiagnostics.Append(
                 result.DeletePlan.PakPath,
-                "delete-rebuild",
-                result.ToDisplayText());
+                new PakEditDiagnosticEntry(
+                    DateTime.Now,
+                    "delete-rebuild",
+                    result.Success,
+                    result.DeletePlan.PakPath,
+                    null,
+                    result.ToDisplayText()));
         }
         catch
         {
