@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Viewer.App.Map;
 
 public enum S32RenderMode
@@ -43,8 +45,10 @@ public sealed class S32GridRenderPanel : Panel
         ContextMenuStrip = BuildContextMenu();
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public float Zoom => _zoom;
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public S32RenderMode RenderMode
     {
         get => _renderMode;
@@ -62,6 +66,7 @@ public sealed class S32GridRenderPanel : Panel
         }
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool TileImageRenderEnabled
     {
         get => _tileImageRenderEnabled;
@@ -77,6 +82,7 @@ public sealed class S32GridRenderPanel : Panel
         }
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int TileImageDrawAttemptLimit
     {
         get => _tileImageDrawAttemptLimit;
