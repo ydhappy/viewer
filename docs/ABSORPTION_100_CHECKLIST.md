@@ -162,9 +162,46 @@ D. Build validation
 - [ ] benchmark-minimap
 - [ ] benchmark-thumbnails
 
-## Next append target
+## C. Integration enhancement
+
+### C1. UI Structure
+
+- [ ] Split MainForm
+- [ ] Split PakPanel
+- [ ] Split SpritePanel
+- [ ] Split MapPanel
+- [ ] Shared status/log panel
+- [ ] Recent files
+- [ ] Korean UI label cleanup
+
+### C2. Service Structure
+
+- [ ] Command/service layer
+- [ ] Diagnostics presenter unification
+- [ ] Settings service
+- [ ] Cache service
+- [ ] Export service
+- [ ] Error report service
+
+### C3. Release Packaging
+
+- [x] GitHub Actions build
+- [x] Build artifact upload
+- [ ] Version stamping
+- [ ] Release zip layout
+- [ ] Sample config
+- [ ] Smoke test checklist
+
+## D. Build validation
+
+- [x] Main branch build success baseline
+- [ ] Branch build after each absorption batch
+- [ ] PR validation before merge
+- [ ] Artifact download verification
+- [ ] Runtime smoke test
+
+## Next work target
 
 ```text
-C. Integration enhancement
-D. Build validation
+Start A1/A2 implementation in small commits.
 ```
