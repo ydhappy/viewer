@@ -282,6 +282,15 @@
 - 등록 decoder 목록을 Sprite 패널 Detail에 표시
 - 실제 SPR 디코더를 별도 구현체로 추가할 수 있는 구조 마련
 
+## 27차 완료
+
+- `GlobalUsings.cs` 추가
+- WinForms / Drawing / LINQ / IO 공통 namespace 전역 using 정리
+- `SpriteFrameDecodeResult`에 `IDisposable` 구현 추가
+- Sprite decoder 결과 Bitmap 정리 기준 명확화
+- `KNOWN_ISSUES.md`에 decoder registry와 RawPreview fallback decoder 한계 반영
+- 디코더 구조 안정화 및 향후 실제 SPR decoder 교체 준비
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -329,11 +338,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-27차에서는 디코더 구조 안정성과 빌드 영향 가능성을 점검한다.
+28차에서는 IDX 보호/확장 포맷 대응으로 방향을 전환한다.
 
-- SpriteFrameDecoder/SpriteResourcePanel nullable 영향 확인
-- README/KNOWN_ISSUES에 decoder registry 한계 반영
-- 이후 IDX 보호/확장 포맷 또는 실제 SPR 디코더 중 우선순위 선정
+- PakViewer 원본의 IDX decode / CorePakTools 후보 재탐색
+- classic-28 외 header/record 구조 후보 분리
+- `IIdxParserStrategy` 구조 추가
+- 보호/확장 IDX 이식 전 파서 registry 준비
 
 ## 주의사항
 
