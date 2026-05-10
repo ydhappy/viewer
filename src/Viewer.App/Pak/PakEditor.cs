@@ -16,7 +16,9 @@ public static class PakEditor
     {
         if (!File.Exists(inputFilePath))
         {
-            return Fail("Input file does not exist.", pakPath, record);
+            var missingInput = Fail("Input file does not exist.", pakPath, record);
+            PakEditDiagnostics.AppendResult("same-size-import", missingInput);
+            return missingInput;
         }
 
         var inputBytes = File.ReadAllBytes(inputFilePath);
@@ -28,10 +30,12 @@ public static class PakEditor
         var validation = ValidateSameSizeUpdate(pakPath, record, replacementBytes.Length);
         if (!validation.Success)
         {
+            PakEditDiagnostics.AppendResult("same-size-update", validation);
             return validation;
         }
 
         string? backupPath = null;
+        PakEditResult result;
         try
         {
             if (createBackup)
@@ -44,7 +48,7 @@ public static class PakEditor
             pak.Write(replacementBytes, 0, replacementBytes.Length);
             pak.Flush(flushToDisk: true);
 
-            return new PakEditResult(
+            result = new PakEditResult(
                 true,
                 "Same-size import completed.",
                 pakPath,
@@ -55,7 +59,7 @@ public static class PakEditor
         }
         catch (Exception ex)
         {
-            return new PakEditResult(
+            result = new PakEditResult(
                 false,
                 "Same-size import failed: " + ex.Message,
                 pakPath,
@@ -64,6 +68,9 @@ public static class PakEditor
                 record.Size,
                 backupPath);
         }
+
+        PakEditDiagnostics.AppendResult("same-size-update", result);
+        return result;
     }
 
     public static PakEditResult ValidateSameSizeUpdate(string pakPath, IdxRecord record, int replacementSize)
