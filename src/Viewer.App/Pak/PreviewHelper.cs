@@ -1,4 +1,3 @@
-using System.Drawing.Imaging;
 using System.Text;
 
 namespace Viewer.App.Pak;
@@ -20,11 +19,6 @@ public static class PreviewHelper
         ".txt", ".html", ".htm", ".xml", ".ini", ".cfg", ".log", ".dat", ".csv", ".json"
     };
 
-    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".png", ".bmp", ".jpg", ".jpeg", ".gif"
-    };
-
     public static PreviewKind DetectKind(string fileName, byte[] data)
     {
         if (SpecialResourceAnalyzer.IsSpecialResource(fileName))
@@ -39,7 +33,7 @@ public static class PreviewHelper
             return PreviewKind.Text;
         }
 
-        if (ImageExtensions.Contains(extension) || LooksLikeKnownBitmap(data))
+        if (ImageResourceDecoder.IsImageExtension(extension) || LooksLikeKnownImage(data))
         {
             return PreviewKind.Image;
         }
@@ -64,9 +58,7 @@ public static class PreviewHelper
 
     public static Image LoadImage(byte[] data)
     {
-        using var stream = new MemoryStream(data);
-        using var image = Image.FromStream(stream);
-        return new Bitmap(image);
+        return ImageResourceDecoder.LoadBitmap(data);
     }
 
     public static string ToHexPreview(byte[] data, int maxBytes = 4096)
@@ -111,9 +103,9 @@ public static class PreviewHelper
         return builder.ToString();
     }
 
-    private static bool LooksLikeKnownBitmap(byte[] data)
+    private static bool LooksLikeKnownImage(byte[] data)
     {
-        if (data.Length < 8)
+        if (data.Length < 12)
         {
             return false;
         }
@@ -122,7 +114,11 @@ public static class PreviewHelper
         var isBmp = data[0] == 0x42 && data[1] == 0x4D;
         var isJpeg = data[0] == 0xFF && data[1] == 0xD8;
         var isGif = data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46;
+        var isTiffLe = data[0] == 0x49 && data[1] == 0x49 && data[2] == 0x2A && data[3] == 0x00;
+        var isTiffBe = data[0] == 0x4D && data[1] == 0x4D && data[2] == 0x00 && data[3] == 0x2A;
+        var isWebp = data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
+                     data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50;
 
-        return isPng || isBmp || isJpeg || isGif;
+        return isPng || isBmp || isJpeg || isGif || isTiffLe || isTiffBe || isWebp;
     }
 }
