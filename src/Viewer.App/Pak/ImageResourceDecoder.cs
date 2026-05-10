@@ -1,3 +1,4 @@
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
 
@@ -48,7 +49,7 @@ public static class ImageResourceDecoder
         using var input = new MemoryStream(data);
         using var image = ImageSharpImage.Load<Rgba32>(input);
         using var output = new MemoryStream();
-        image.SaveAsPng(output);
+        image.Save(output, new PngEncoder());
         output.Position = 0;
         return new Bitmap(output);
     }
