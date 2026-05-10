@@ -2,7 +2,9 @@ namespace Viewer.App.Map;
 
 public sealed class S32GridRenderPanel : Panel
 {
-    private const int MaxTileImageDrawAttemptsPerPaint = 512;
+    private const int DefaultTileImageDrawAttemptsPerPaint = 512;
+    private const int MinTileImageDrawAttemptsPerPaint = 0;
+    private const int MaxTileImageDrawAttemptsPerPaint = 4096;
 
     private readonly DefaultTileImageCache _tileImageCache = new();
 
@@ -16,6 +18,8 @@ public sealed class S32GridRenderPanel : Panel
     private float _zoom = 1.0f;
     private int _lastTileImageSuccessCount;
     private int _lastTileImageAttemptCount;
+    private int _tileImageDrawAttemptLimit = DefaultTileImageDrawAttemptsPerPaint;
+    private bool _tileImageRenderEnabled = true;
 
     public S32GridRenderPanel()
     {
@@ -23,9 +27,35 @@ public sealed class S32GridRenderPanel : Panel
         BackColor = Color.FromArgb(24, 24, 24);
         SetStyle(ControlStyles.Selectable, true);
         TabStop = true;
+        ContextMenuStrip = BuildContextMenu();
     }
 
     public float Zoom => _zoom;
+
+    public bool TileImageRenderEnabled
+    {
+        get => _tileImageRenderEnabled;
+        set
+        {
+            if (_tileImageRenderEnabled == value)
+            {
+                return;
+            }
+
+            _tileImageRenderEnabled = value;
+            Invalidate();
+        }
+    }
+
+    public int TileImageDrawAttemptLimit
+    {
+        get => _tileImageDrawAttemptLimit;
+        set
+        {
+            _tileImageDrawAttemptLimit = Math.Clamp(value, MinTileImageDrawAttemptsPerPaint, MaxTileImageDrawAttemptsPerPaint);
+            Invalidate();
+        }
+    }
 
     public Bitmap CreateSnapshot()
     {
@@ -50,7 +80,7 @@ public sealed class S32GridRenderPanel : Panel
             $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}",
-            $"TileImage: attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}");
+            $"TileImage: enabled={_tileImageRenderEnabled}, limit={_tileImageDrawAttemptLimit:N0}, attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}");
     }
 
     public void ZoomIn()
@@ -168,6 +198,38 @@ public sealed class S32GridRenderPanel : Panel
         DrawOverlay(e.Graphics);
     }
 
+    private ContextMenuStrip BuildContextMenu()
+    {
+        var menu = new ContextMenuStrip();
+        var toggleTileImages = new ToolStripMenuItem("Tile Image Render 켜기/끄기")
+        {
+            CheckOnClick = true,
+            Checked = true
+        };
+        toggleTileImages.Click += (_, _) => TileImageRenderEnabled = toggleTileImages.Checked;
+
+        var lowerLimit = new ToolStripMenuItem("Tile Image Limit 낮추기") { ShortcutKeyDisplayString = "-256" };
+        lowerLimit.Click += (_, _) => TileImageDrawAttemptLimit -= 256;
+
+        var raiseLimit = new ToolStripMenuItem("Tile Image Limit 올리기") { ShortcutKeyDisplayString = "+256" };
+        raiseLimit.Click += (_, _) => TileImageDrawAttemptLimit += 256;
+
+        var resetLimit = new ToolStripMenuItem("Tile Image Limit 기본값") { ShortcutKeyDisplayString = DefaultTileImageDrawAttemptsPerPaint.ToString("N0") };
+        resetLimit.Click += (_, _) => TileImageDrawAttemptLimit = DefaultTileImageDrawAttemptsPerPaint;
+
+        var resetZoom = new ToolStripMenuItem("Zoom 100%") { ShortcutKeyDisplayString = "Reset" };
+        resetZoom.Click += (_, _) => ResetZoom();
+
+        menu.Items.Add(toggleTileImages);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(lowerLimit);
+        menu.Items.Add(raiseLimit);
+        menu.Items.Add(resetLimit);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(resetZoom);
+        return menu;
+    }
+
     private void DrawLayer1ColorGrid(Graphics graphics, S32LayerSample sample)
     {
         var baseCellSize = Math.Max(3, Math.Min(8, Math.Min(Width / S32LayerSample.Width, Math.Max(1, (Height - 140) / S32LayerSample.Height))));
@@ -182,7 +244,7 @@ public sealed class S32GridRenderPanel : Panel
         _lastTileImageAttemptCount = 0;
         _lastTileImageSuccessCount = 0;
 
-        var canAttemptTileImages = _tileResourceSet is not null && cellSize >= 8;
+        var canAttemptTileImages = _tileImageRenderEnabled && _tileResourceSet is not null && cellSize >= 8 && _tileImageDrawAttemptLimit > 0;
 
         for (var y = 0; y < S32LayerSample.Height; y++)
         {
@@ -192,7 +254,7 @@ public sealed class S32GridRenderPanel : Panel
                 var target = new Rectangle(startX + x * cellSize, startY + y * cellSize, cellSize, cellSize);
                 var imageDrawn = false;
 
-                if (canAttemptTileImages && _lastTileImageAttemptCount < MaxTileImageDrawAttemptsPerPaint)
+                if (canAttemptTileImages && _lastTileImageAttemptCount < _tileImageDrawAttemptLimit)
                 {
                     imageDrawn = TryDrawTileImage(graphics, tileId, target);
                 }
@@ -352,7 +414,7 @@ public sealed class S32GridRenderPanel : Panel
         var selectedTileId = GetTileId(_selectedTile);
         var tileImageText = _tileResourceSet is null
             ? "Tile image render: unavailable"
-            : $"Tile image render: attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}, max/paint={MaxTileImageDrawAttemptsPerPaint:N0}";
+            : $"Tile image render: enabled={_tileImageRenderEnabled}, attempts={_lastTileImageAttemptCount:N0}, success={_lastTileImageSuccessCount:N0}, limit={_tileImageDrawAttemptLimit:N0}";
 
         var lines = new List<string>
         {
@@ -364,7 +426,8 @@ public sealed class S32GridRenderPanel : Panel
             $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected: {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}",
-            tileImageText
+            tileImageText,
+            "Right click: render options"
         };
 
         graphics.DrawString(_layerSample?.HasLayer1 == true ? "Layer1 Tile Render" : "임시 Iso Grid Render", titleFont, brush, 12, 12);
