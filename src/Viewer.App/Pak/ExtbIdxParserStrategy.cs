@@ -108,7 +108,7 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
             return null;
         }
 
-        var index = sortedOffsets.IndexOf(offset);
+        var index = FindOffsetIndex(sortedOffsets, offset);
         if (index < 0)
         {
             return null;
@@ -125,6 +125,19 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
         }
 
         return null;
+    }
+
+    private static int FindOffsetIndex(IReadOnlyList<int> sortedOffsets, int offset)
+    {
+        for (var i = 0; i < sortedOffsets.Count; i++)
+        {
+            if (sortedOffsets[i] == offset)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static string ReadAsciiName(byte[] data, int start, int endExclusive)
