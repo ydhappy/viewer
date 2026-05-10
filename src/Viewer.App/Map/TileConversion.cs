@@ -82,11 +82,11 @@ public static class TileResourceClassifier
         var extension = Path.GetExtension(record.FileName).ToLowerInvariant();
         return extension switch
         {
-            ".png" or ".bmp" or ".jpg" or ".jpeg" or ".gif" => new TileConversionCandidate(
+            ".png" or ".bmp" or ".jpg" or ".jpeg" or ".gif" or ".tga" or ".targa" or ".tif" or ".tiff" or ".webp" => new TileConversionCandidate(
                 TileResourceKind.DirectImage,
                 extension,
                 true,
-                "Common image format supported by System.Drawing"),
+                "Common image format supported by System.Drawing/ImageSharp"),
             ".spr" => new TileConversionCandidate(
                 TileResourceKind.Sprite,
                 extension,
@@ -101,7 +101,7 @@ public static class TileResourceClassifier
                 TileResourceKind.Tile,
                 extension,
                 false,
-                "Lineage tile resource; dedicated TIL converter is required"),
+                "Lineage tile resource; L1 TIL block converter is selected"),
             ".tbt" => new TileConversionCandidate(
                 TileResourceKind.TileTable,
                 extension,
