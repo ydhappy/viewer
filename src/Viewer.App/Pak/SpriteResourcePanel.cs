@@ -20,6 +20,7 @@ public sealed class SpriteResourcePanel : UserControl
     private readonly Button _refreshPreviewButton = new();
     private readonly Button _framePrevButton = new();
     private readonly Button _frameNextButton = new();
+    private readonly SpriteFrameDecoderRegistry _decoderRegistry = SpriteFrameDecoderRegistry.CreateDefault();
 
     private SpriteListCatalog? _catalog;
     private IReadOnlyList<IdxRecord> _records = Array.Empty<IdxRecord>();
@@ -260,6 +261,8 @@ public sealed class SpriteResourcePanel : UserControl
             $"Visible Entries: {_entryList.Items.Count:N0}" + Environment.NewLine +
             $"SPR Records    : {CountSprRecords():N0}" + Environment.NewLine +
             $"IDX Path       : {(_idxPath ?? "-")}" + Environment.NewLine +
+            string.Empty + Environment.NewLine +
+            _decoderRegistry.ToDisplayText() + Environment.NewLine + Environment.NewLine +
             "※ 목록은 UI 부하를 막기 위해 최대 5,000개까지만 표시합니다.";
         _renderPlaceholder.Invalidate();
     }
@@ -275,6 +278,8 @@ public sealed class SpriteResourcePanel : UserControl
                 "===============",
                 $"SPR Records: {CountSprRecords():N0}",
                 $"IDX Path   : {(_idxPath ?? "-")}",
+                string.Empty,
+                _decoderRegistry.ToDisplayText(),
                 string.Empty,
                 "list.spr catalog is not loaded.",
                 "PAK 탭에서 list.spr 열기를 먼저 실행하세요.");
@@ -337,10 +342,12 @@ public sealed class SpriteResourcePanel : UserControl
         }
 
         lines.Add(string.Empty);
+        lines.Add(_decoderRegistry.ToDisplayText());
+        lines.Add(string.Empty);
         lines.Add("Render Placeholder");
         lines.Add("==================");
         lines.Add("실제 SPR 프레임 디코더는 아직 연결되지 않았습니다.");
-        lines.Add("다음 단계에서 프레임/방향/액션 단위 디코더를 이식합니다.");
+        lines.Add("RawPreview decoder는 실제 디코더가 아니라 fallback 검증용입니다.");
         lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview와 raw grayscale preview를 확인할 수 있습니다.");
 
         return string.Join(Environment.NewLine, lines);
@@ -377,8 +384,8 @@ public sealed class SpriteResourcePanel : UserControl
             _lastSprBytes = data;
             _lastAnalysis = analysis;
             ResetManualPreviewOptions(data, analysis);
-            var preview = BuildPreviewFromControls();
-            SetRawPreview(preview);
+            var decodeResult = DecodePreviewFromControls();
+            SetRawPreview(decodeResult);
 
             _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine +
                 "SPR Byte Diagnostics" + Environment.NewLine +
@@ -388,7 +395,7 @@ public sealed class SpriteResourcePanel : UserControl
                 $"Signature: {BuildSignature(data)}" + Environment.NewLine +
                 string.Empty + Environment.NewLine +
                 analysis.ToDisplayText() + Environment.NewLine + Environment.NewLine +
-                preview.ToDisplayText() + Environment.NewLine + Environment.NewLine +
+                decodeResult.ToDisplayText() + Environment.NewLine + Environment.NewLine +
                 "HEX Preview" + Environment.NewLine +
                 "-----------" + Environment.NewLine +
                 PreviewHelper.ToHexPreview(data, 1024);
@@ -419,7 +426,7 @@ public sealed class SpriteResourcePanel : UserControl
         }
     }
 
-    private SpriteRawPreviewResult BuildPreviewFromControls()
+    private SpriteFrameDecodeResult DecodePreviewFromControls()
     {
         var data = _lastSprBytes ?? Array.Empty<byte>();
         var analysis = _lastAnalysis ?? SpriteHeaderAnalyzer.Analyze(data);
@@ -428,7 +435,9 @@ public sealed class SpriteResourcePanel : UserControl
             (int)_previewOffsetBox.Value,
             (int)_previewFrameBox.Value,
             (double)_previewZoomBox.Value / 100.0);
-        return SpriteRawPreviewBuilder.Build(data, analysis, options);
+        var request = new SpriteFrameDecodeRequest(data, analysis, options);
+        var decoder = _decoderRegistry.Select(request);
+        return decoder.Decode(request);
     }
 
     private void RefreshRawPreview(TabControl rightTabs)
@@ -439,19 +448,19 @@ public sealed class SpriteResourcePanel : UserControl
             return;
         }
 
-        var preview = BuildPreviewFromControls();
-        SetRawPreview(preview);
-        _detailBox.Text += Environment.NewLine + Environment.NewLine + preview.ToDisplayText();
+        var decodeResult = DecodePreviewFromControls();
+        SetRawPreview(decodeResult);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + decodeResult.ToDisplayText();
         rightTabs.SelectedIndex = 2;
     }
 
-    private void SetRawPreview(SpriteRawPreviewResult preview)
+    private void SetRawPreview(SpriteFrameDecodeResult decodeResult)
     {
-        _lastRawPreview = preview;
+        _lastRawPreview = decodeResult.RawPreview;
         var oldImage = _rawPreviewBox.Image;
-        using var zoomed = SpriteRawPreviewBuilder.ApplyZoom(preview.Bitmap, preview.Zoom);
-        _rawPreviewBox.Image = new Bitmap(zoomed);
+        _rawPreviewBox.Image = decodeResult.Bitmap is null ? null : new Bitmap(decodeResult.Bitmap);
         oldImage?.Dispose();
+        decodeResult.Bitmap?.Dispose();
     }
 
     private void ExtractSelectedSpr()
@@ -633,8 +642,8 @@ public sealed class SpriteResourcePanel : UserControl
         graphics.DrawRectangle(borderPen, rect);
         graphics.DrawString("SPR Renderer Placeholder", titleFont, titleBrush, 32, 24);
         graphics.DrawString("list.spr entry와 PAK .spr record 매핑은 준비되었습니다.", font, brush, 44, 92);
-        graphics.DrawString("SPR 진단/추출/정보 저장/raw 저장/preview 저장 기능도 연결되었습니다.", font, brush, 44, 118);
-        graphics.DrawString("Raw Preview 탭에서 width/offset/frame/zoom을 수동 조정할 수 있습니다.", font, brush, 44, 144);
-        graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 170);
+        graphics.DrawString("SPR frame decoder registry가 연결되었습니다.", font, brush, 44, 118);
+        graphics.DrawString("현재는 RawPreview fallback decoder가 raw preview를 생성합니다.", font, brush, 44, 144);
+        graphics.DrawString("실제 프레임 디코더는 ISpriteFrameDecoder 구현체로 추가할 수 있습니다.", font, brush, 44, 170);
     }
 }
