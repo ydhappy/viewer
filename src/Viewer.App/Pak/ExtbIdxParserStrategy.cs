@@ -16,7 +16,7 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
 
     public bool IsProbeOnly => false;
 
-    public string Description => "_EXTB$ extended index parser skeleton: 16-byte header + 128-byte entries";
+    public string Description => "_EXTB$ extended index parser: 16-byte header + 128-byte entries";
 
     public IReadOnlyList<IdxRecord> Parse(IdxParseContext context)
     {
@@ -37,30 +37,35 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
             return Array.Empty<IdxRecord>();
         }
 
-        var entryCount = payloadLength / EntrySize;
-        var records = new List<IdxRecord>(entryCount);
+        var entries = ReadEntries(data);
+        var sortedOffsets = entries
+            .Select(entry => entry.PakOffset)
+            .Where(offset => offset >= 0 && (context.PakSize <= 0 || offset < context.PakSize))
+            .Distinct()
+            .OrderBy(offset => offset)
+            .ToList();
 
-        for (var i = 0; i < entryCount; i++)
+        var records = new List<IdxRecord>(entries.Count);
+        foreach (var entry in entries)
         {
-            var entryOffset = HeaderSize + i * EntrySize;
-            var compression = BitConverter.ToInt32(data, entryOffset + CompressionOffset);
-            var pakOffset = BitConverter.ToInt32(data, entryOffset + PakOffsetOffset);
-            var fileSize = BitConverter.ToInt32(data, entryOffset + SizeOffset);
-            var fileName = ReadAsciiName(data, entryOffset + NameOffset, entryOffset + NameEndOffset);
-
-            if (!IdxParserUtilities.IsReasonableName(fileName))
+            if (!IdxParserUtilities.IsReasonableName(entry.FileName))
             {
                 continue;
             }
 
-            var canExtract = compression == 0 && IdxParserUtilities.IsExtractable(pakOffset, fileSize, context.PakSize);
+            var compressedSize = CalculateCompressedSize(sortedOffsets, entry.PakOffset, context.PakSize);
+            var canExtract = entry.FileSize > 0 && entry.PakOffset >= 0 && compressedSize is > 0 &&
+                (context.PakSize <= 0 || entry.PakOffset + compressedSize.Value <= context.PakSize);
+
             records.Add(new IdxRecord(
                 Index: records.Count + 1,
-                FileName: fileName,
-                Size: fileSize,
-                Offset: pakOffset,
+                FileName: entry.FileName,
+                Size: entry.FileSize,
+                Offset: entry.PakOffset,
                 CanExtract: canExtract,
-                Format: compression == 0 ? Name : $"{Name}-compressed-{compression}"));
+                Format: entry.Compression == 0 ? Name : $"{Name}-compressed-{entry.Compression}",
+                Compression: entry.Compression,
+                CompressedSize: compressedSize));
         }
 
         return records;
@@ -75,6 +80,51 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
                data[3] == (byte)'T' &&
                data[4] == (byte)'B' &&
                data[5] == (byte)'$';
+    }
+
+    private static List<ExtbEntry> ReadEntries(byte[] data)
+    {
+        var payloadLength = data.Length - HeaderSize;
+        var entryCount = payloadLength / EntrySize;
+        var entries = new List<ExtbEntry>(entryCount);
+
+        for (var i = 0; i < entryCount; i++)
+        {
+            var entryOffset = HeaderSize + i * EntrySize;
+            var compression = BitConverter.ToInt32(data, entryOffset + CompressionOffset);
+            var pakOffset = BitConverter.ToInt32(data, entryOffset + PakOffsetOffset);
+            var fileSize = BitConverter.ToInt32(data, entryOffset + SizeOffset);
+            var fileName = ReadAsciiName(data, entryOffset + NameOffset, entryOffset + NameEndOffset);
+            entries.Add(new ExtbEntry(fileName, pakOffset, fileSize, compression));
+        }
+
+        return entries;
+    }
+
+    private static int? CalculateCompressedSize(IReadOnlyList<int> sortedOffsets, int offset, long pakSize)
+    {
+        if (offset < 0)
+        {
+            return null;
+        }
+
+        var index = sortedOffsets.IndexOf(offset);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        if (index + 1 < sortedOffsets.Count)
+        {
+            return Math.Max(0, sortedOffsets[index + 1] - offset);
+        }
+
+        if (pakSize > offset)
+        {
+            return (int)(pakSize - offset);
+        }
+
+        return null;
     }
 
     private static string ReadAsciiName(byte[] data, int start, int endExclusive)
@@ -92,4 +142,6 @@ public sealed class ExtbIdxParserStrategy : IIdxParserStrategy
 
         return Encoding.ASCII.GetString(data, start, end - start).Trim();
     }
+
+    private sealed record ExtbEntry(string FileName, int PakOffset, int FileSize, int Compression);
 }
