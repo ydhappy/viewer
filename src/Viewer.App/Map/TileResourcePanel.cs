@@ -6,6 +6,8 @@ public sealed class TileResourcePanel : UserControl
     private readonly Button _searchButton = new();
     private readonly Button _diagnosticsButton = new();
     private readonly Button _converterButton = new();
+    private readonly Button _saveImageButton = new();
+    private readonly Button _copyImageButton = new();
     private readonly ListView _recordList = new();
     private readonly TextBox _detailBox = new();
     private readonly PictureBox _imagePreview = new();
@@ -41,11 +43,17 @@ public sealed class TileResourcePanel : UserControl
         _diagnosticsButton.AutoSize = true;
         _converterButton.Text = "변환기 목록";
         _converterButton.AutoSize = true;
+        _saveImageButton.Text = "이미지 저장";
+        _saveImageButton.AutoSize = true;
+        _copyImageButton.Text = "이미지 복사";
+        _copyImageButton.AutoSize = true;
         toolbar.Controls.Add(new Label { Text = "Tile ID", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_searchBox);
         toolbar.Controls.Add(_searchButton);
         toolbar.Controls.Add(_diagnosticsButton);
         toolbar.Controls.Add(_converterButton);
+        toolbar.Controls.Add(_saveImageButton);
+        toolbar.Controls.Add(_copyImageButton);
 
         var split = new SplitContainer
         {
@@ -96,6 +104,8 @@ public sealed class TileResourcePanel : UserControl
             _detailBox.Text = _imageCache.GetConverterListText();
             rightTabs.SelectedIndex = 0;
         };
+        _saveImageButton.Click += (_, _) => SaveCurrentImage();
+        _copyImageButton.Click += (_, _) => CopyCurrentImage();
         _searchBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -194,6 +204,42 @@ public sealed class TileResourcePanel : UserControl
         var diagnostics = TileResourceDiagnosticsAnalyzer.Analyze(_tileResourceSet, record);
         _detailBox.Text = diagnostics.ToDisplayText();
         rightTabs.SelectedIndex = 0;
+    }
+
+    private void SaveCurrentImage()
+    {
+        if (_imagePreview.Image is null)
+        {
+            _detailBox.Text = "저장할 변환 이미지가 없습니다. 먼저 Tile ID 검색/변환을 실행하세요.";
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Tile 변환 이미지 저장",
+            Filter = "PNG image (*.png)|*.png",
+            FileName = "tile-converted.png"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _imagePreview.Image.Save(dialog.FileName, System.Drawing.Imaging.ImageFormat.Png);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + "이미지 저장 완료: " + dialog.FileName;
+    }
+
+    private void CopyCurrentImage()
+    {
+        if (_imagePreview.Image is null)
+        {
+            _detailBox.Text = "복사할 변환 이미지가 없습니다. 먼저 Tile ID 검색/변환을 실행하세요.";
+            return;
+        }
+
+        Clipboard.SetImage(new Bitmap(_imagePreview.Image));
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + "이미지를 클립보드에 복사했습니다.";
     }
 
     private Viewer.App.Pak.IdxRecord? GetSelectedRecord()
