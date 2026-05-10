@@ -22,7 +22,7 @@ tony1223/L1MapViewer
 ## Current Branch
 
 ```text
-absorb-pak-backup-ui
+absorb-pak-delete-plan
 ```
 
 ## Sections
@@ -54,11 +54,12 @@ D. Build validation
 - [ ] Add file
 - [x] Update file: same-size raw import service and UI
 - [ ] Delete file
+- [x] Delete file safe plan model
 - [x] Same-size import
 - [ ] Rebuild PAK
 - [x] Backup / rollback core service
 - [x] Backup / rollback UI
-- [ ] Write diagnostics
+- [x] Write diagnostics
 
 ### A3. Text / Encoding
 
@@ -204,6 +205,6 @@ D. Build validation
 ## Next work target
 
 ```text
-A2 Delete file safe tombstone/rebuild design
-A2 Write diagnostics
+A2 Rebuild PAK
+A2 Delete file actual rebuild flow
 ```
