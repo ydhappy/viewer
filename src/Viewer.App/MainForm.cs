@@ -60,10 +60,15 @@ public sealed class MainForm : Form
         list.Columns.Add("FileName", 300, HorizontalAlignment.Left);
         list.Columns.Add("Size", 120, HorizontalAlignment.Right);
         list.Columns.Add("Offset", 120, HorizontalAlignment.Right);
+        list.Columns.Add("Extract", 80, HorizontalAlignment.Center);
+        list.Columns.Add("Format", 110, HorizontalAlignment.Left);
 
         list.SelectedIndexChanged += (_, _) =>
         {
-            exportButton.Enabled = list.SelectedItems.Count > 0 && !string.IsNullOrEmpty(_currentIdxPath);
+            exportButton.Enabled = list.SelectedItems
+                .Cast<ListViewItem>()
+                .Any(item => item.Tag is Pak.IdxRecord { CanExtract: true })
+                && !string.IsNullOrEmpty(_currentIdxPath);
         };
 
         openIdxButton.Click += (_, _) =>
@@ -94,11 +99,14 @@ public sealed class MainForm : Form
                     item.SubItems.Add(record.FileName);
                     item.SubItems.Add(record.Size.ToString("N0"));
                     item.SubItems.Add(record.Offset.ToString("N0"));
+                    item.SubItems.Add(record.CanExtract ? "YES" : "NO");
+                    item.SubItems.Add(record.Format);
                     list.Items.Add(item);
                 }
 
                 exportButton.Enabled = false;
-                WriteLog($"IDX loaded: {dialog.FileName}, records={_currentPakRecords.Count}");
+                var extractable = _currentPakRecords.Count(r => r.CanExtract);
+                WriteLog($"IDX loaded: {dialog.FileName}, records={_currentPakRecords.Count}, extractable={extractable}");
             }
             catch (Exception ex)
             {
@@ -127,12 +135,20 @@ public sealed class MainForm : Form
             var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
             var success = 0;
             var failed = 0;
+            var skipped = 0;
 
             foreach (ListViewItem item in list.SelectedItems)
             {
                 if (item.Tag is not Pak.IdxRecord record)
                 {
                     failed++;
+                    continue;
+                }
+
+                if (!record.CanExtract)
+                {
+                    skipped++;
+                    WriteLog($"Extract skipped: {record.FileName} - not extractable");
                     continue;
                 }
 
@@ -149,7 +165,7 @@ public sealed class MainForm : Form
                 }
             }
 
-            MessageBox.Show(this, $"추출 완료\n성공: {success}\n실패: {failed}", "Extract", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, $"추출 완료\n성공: {success}\n실패: {failed}\n건너뜀: {skipped}", "Extract", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
 
         layout.Controls.Add(toolbar, 0, 0);
