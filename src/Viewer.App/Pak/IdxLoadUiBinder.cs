@@ -43,6 +43,11 @@ public static class IdxLoadUiBinder
         }
     }
 
+    public static string BuildRecordInfo(IdxRecord record, string? pakPath = null, long? pakSize = null)
+    {
+        return PakRecordDiagnostics.BuildRecordSummary(record, pakPath, pakSize);
+    }
+
     private static void EnsureCompressionColumns(ListView list)
     {
         if (!HasColumn(list, "Compression"))
