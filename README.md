@@ -22,6 +22,23 @@
 - PNG/BMP/JPG/GIF 이미지 미리보기
 - 작은 바이너리 HEX 미리보기
 - SPR/IMG/TIL/TBT 전용 리소스 감지 및 헤더 정보 표시
+- list.spr 열기 및 `.spr` 리소스 매핑 표시
+
+### Sprite
+
+- Sprite 전용 탭
+- list.spr entry 목록 표시
+- Sprite ID / 이름 / 그룹 / 액션 검색
+- list.spr entry와 PAK `.spr` record 역매핑
+- 매핑된 `.spr` 리소스 개별 추출
+- Sprite 매핑/진단 정보 TXT 저장
+- SPR 바이트 HEX preview
+- SPR 헤더 후보 분석
+- Frame Count / Direction Count / Palette Size / Frame Bytes 후보 추정
+- SPR raw byte 저장
+- 후보 payload 회색조 Raw Preview 표시
+- Raw Preview width / offset / frame index / zoom 수동 조정
+- Raw Preview PNG 저장
 
 ### S32 Map
 
@@ -48,8 +65,10 @@
 - 확장자 기반 변환 후보 분류
 - DirectImage/TIL/IMG/SPR/TBT/Text 변환기 등록 구조
 - PNG/BMP/JPG/JPEG/GIF 직접 이미지 변환 및 미리보기
+- TIL/IMG Raw Byte 진단 이미지 변환
 - TIL/IMG/SPR/TBT 변환기 placeholder 및 실패 사유 표시
 - 선택 리소스 헤더/HEX 진단
+- 변환 결과 이미지 PNG 저장/복사
 - 등록 변환기 목록 표시
 
 ## 요구 환경
@@ -104,7 +123,12 @@ viewer/
    │  ├─ IdxParser.cs
    │  ├─ PakExtractor.cs
    │  ├─ PreviewHelper.cs
-   │  └─ SpecialResourceInfo.cs
+   │  ├─ SpecialResourceInfo.cs
+   │  ├─ SpriteHeaderAnalysis.cs
+   │  ├─ SpriteListEntry.cs
+   │  ├─ SpriteListParser.cs
+   │  ├─ SpriteRawPreview.cs
+   │  └─ SpriteResourcePanel.cs
    └─ Map/
       ├─ ITileImageCache.cs
       ├─ S32Analyzer.cs
@@ -129,8 +153,9 @@ viewer/
 
 1. 보호/암호화 IDX 처리
 2. `_EXTB$` 확장 IDX 처리
-3. TIL/IMG/SPR 실제 이미지 변환
-4. Tile.idx 기반 실제 타일 이미지 캐시
-5. S32 Layer2/3/4/5/7 파서 보강
-6. 실제 타일 기반 지도 렌더링
-7. 편집/저장/PNG Export 고도화
+3. TIL/IMG 실제 이미지 변환
+4. SPR 실제 프레임 디코더/팔레트/방향별 렌더링
+5. Tile.idx 기반 실제 타일 이미지 캐시
+6. S32 Layer2/3/4/5/7 파서 보강
+7. 실제 타일 기반 지도 렌더링
+8. 편집/저장/PNG Export 고도화
