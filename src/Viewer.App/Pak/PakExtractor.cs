@@ -22,11 +22,11 @@ public static class PakExtractor
         return pakPath;
     }
 
-    public static string Extract(string pakPath, IdxRecord record, string outputDirectory)
+    public static byte[] ReadBytes(string pakPath, IdxRecord record)
     {
         if (!record.CanExtract)
         {
-            throw new InvalidOperationException("추출 가능 판정이 된 레코드가 아닙니다.");
+            throw new InvalidOperationException("읽기 가능 판정이 된 레코드가 아닙니다.");
         }
 
         if (!File.Exists(pakPath))
@@ -36,14 +36,28 @@ public static class PakExtractor
 
         if (record.Size <= 0)
         {
-            throw new InvalidOperationException("추출 가능한 레코드 크기가 아닙니다.");
+            throw new InvalidOperationException("읽을 수 있는 레코드 크기가 아닙니다.");
         }
 
         if (record.Offset < 0)
         {
-            throw new InvalidOperationException("추출 가능한 레코드 오프셋이 아닙니다.");
+            throw new InvalidOperationException("읽을 수 있는 레코드 오프셋이 아닙니다.");
         }
 
+        using var input = new FileStream(pakPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (record.Offset + record.Size > input.Length)
+        {
+            throw new InvalidOperationException("레코드 범위가 PAK 파일 크기를 초과합니다.");
+        }
+
+        input.Seek(record.Offset, SeekOrigin.Begin);
+        var data = new byte[record.Size];
+        ReadExactly(input, data);
+        return data;
+    }
+
+    public static string Extract(string pakPath, IdxRecord record, string outputDirectory)
+    {
         Directory.CreateDirectory(outputDirectory);
 
         var safeName = MakeSafeRelativePath(record.FileName);
@@ -54,15 +68,8 @@ public static class PakExtractor
             Directory.CreateDirectory(outputParent);
         }
 
-        using var input = new FileStream(pakPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        if (record.Offset + record.Size > input.Length)
-        {
-            throw new InvalidOperationException("레코드 범위가 PAK 파일 크기를 초과합니다.");
-        }
-
-        input.Seek(record.Offset, SeekOrigin.Begin);
-        using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        CopyExactly(input, output, record.Size);
+        var data = ReadBytes(pakPath, record);
+        File.WriteAllBytes(outputPath, data);
         return outputPath;
     }
 
@@ -79,20 +86,20 @@ public static class PakExtractor
         return parts.Length == 0 ? "unknown.bin" : Path.Combine(parts);
     }
 
-    private static void CopyExactly(Stream input, Stream output, int bytesToCopy)
+    private static void ReadExactly(Stream input, byte[] buffer)
     {
-        var buffer = new byte[64 * 1024];
-        var remaining = bytesToCopy;
+        var offset = 0;
+        var remaining = buffer.Length;
 
         while (remaining > 0)
         {
-            var read = input.Read(buffer, 0, Math.Min(buffer.Length, remaining));
+            var read = input.Read(buffer, offset, remaining);
             if (read <= 0)
             {
                 throw new EndOfStreamException("PAK 파일을 읽는 중 예상보다 빨리 끝났습니다.");
             }
 
-            output.Write(buffer, 0, read);
+            offset += read;
             remaining -= read;
         }
     }
