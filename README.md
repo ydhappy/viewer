@@ -21,7 +21,11 @@
 - IDX 로드 직후 Log에 strategy / probeOnly / records / extractable 기록
 - probe-only/fallback 결과 안내 표시
 - classic 28-byte IDX 후보 파싱
-- `_EXTB$` 확장 IDX marker probe
+- `_EXTB$` 확장 IDX 실제 skeleton parser
+- `_EXTB$` 구조: 16-byte header + 128-byte entries 후보 지원
+- `_EXTB$` entry 후보: filename 8~119, PAK offset 120, size 124
+- `_EXTB$` 무압축 entry는 추출 가능 후보로 표시
+- `_EXTB$` 압축 entry는 아직 추출 불가 후보로 표시
 - fallback binary/text 후보 파싱
 - PAK/PAK 대소문자 자동 탐색
 - 추출 가능 레코드 표시
@@ -130,6 +134,7 @@ viewer/
    ├─ Program.cs
    ├─ MainForm.cs
    ├─ Pak/
+   │  ├─ ExtbIdxParserStrategy.cs
    │  ├─ IdxLoadUiBinder.cs
    │  ├─ IdxParseResultPresenter.cs
    │  ├─ IdxParserStrategy.cs
@@ -167,7 +172,7 @@ viewer/
 ## 다음 개발 방향
 
 1. 보호/암호화 IDX 처리
-2. `_EXTB$` 확장 IDX 실제 레코드 파서
+2. `_EXTB$` 압축 entry 해제 및 실제 크기 계산
 3. TIL/IMG 실제 이미지 변환
 4. SPR 실제 프레임 디코더/팔레트/방향별 렌더링
 5. Tile.idx 기반 실제 타일 이미지 캐시
