@@ -223,6 +223,17 @@
 - Sprite 매핑/진단 정보 TXT 저장 기능 추가
 - 실제 SPR 프레임 디코더 이식 전 검증 편의 기능 구성
 
+## 22차 완료
+
+- 원본 PakViewer의 SPR 디코더 위치를 재검색했으나 독립 디코더 파일은 확인되지 않음
+- `SpriteHeaderAnalysis` 추가
+- `SpriteHeaderAnalyzer` 추가
+- SPR 바이트 기반 헤더 후보 분석 추가
+- Frame Count / Direction Count / Palette Size / Frame Bytes 후보 추정 추가
+- 분석 confidence와 notes 표시 추가
+- Sprite 패널 `SPR 진단` 결과에 헤더 후보 분석 표시 추가
+- 실제 SPR 구조라고 단정하지 않고 디코더 이식 전 후보 분석으로 명확히 분리
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -270,12 +281,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-22차에서는 실제 SPR 프레임 디코더 이식 준비를 시작한다.
+23차에서는 Sprite 진단 결과를 더 검증하기 쉽게 보강한다.
 
-- SPR 파일 헤더 후보 구조 분석 모델 추가
-- Sprite 패널에 SPR 헤더 필드 후보 표시
-- 프레임 개수/방향/팔레트 후보 추정 로직 추가
-- 원본 PakViewer의 SPR/list.spr 흐름을 기준으로 디코더 이식 범위 선정
+- SPR header analysis 결과 CSV/TXT 저장 고도화
+- 선택한 Sprite entry의 진단 raw byte 저장
+- 후보 frame size 기준 raw grayscale preview 추가
+- 실제 SPR 프레임 디코더 이식 전 시각 검증 기능 구성
 
 ## 주의사항
 
