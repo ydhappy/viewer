@@ -76,6 +76,15 @@
 - 선택된 S32 정보와 Tile 리소스 상태를 렌더 오버레이에 표시
 - Map Preview 탭에 Tile 상태 탭 추가
 
+## 8차 완료
+
+- `S32LayerSample` 추가
+- `S32LayerParser` 추가
+- S32 파일 앞부분에서 Layer1 후보 Tile ID 샘플 읽기 추가
+- Render 탭에서 Layer1 Tile ID 기반 색상 그리드 표시
+- Layer1 샘플이 없을 경우 기존 임시 Iso Grid로 fallback
+- Render 오버레이에 Layer1 샘플 개수/읽은 바이트 표시
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -123,12 +132,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-8차에서는 실제 렌더링 준비를 우선한다.
+9차에서는 렌더링 품질과 지도 탐색 UX를 보강한다.
 
-- S32 바이너리 레이어 샘플 파서 추가
-- Layer1 후보 Tile ID 읽기
-- Render 탭에서 Layer1 ID 기반 색상 그리드 표시
-- Tile 이미지 변환 전에도 지도 구조 확인 가능하게 구성
+- Render 탭 확대/축소 배율 추가
+- Layer1 색상 그리드 셀 크기 조절
+- 마우스 위치 기준 Tile ID 표시
+- 선택된 Tile ID 정보 표시
 - 이후 Tile 이미지 캐시/실제 타일 렌더러 연결
 
 ## 주의사항
