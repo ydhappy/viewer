@@ -5,17 +5,49 @@ public sealed class S32GridRenderPanel : Panel
     private S32Info? _currentMap;
     private TileResourceSet? _tileResourceSet;
     private S32LayerSample? _layerSample;
+    private Rectangle _lastGridBounds = Rectangle.Empty;
+    private int _lastCellSize;
+    private Point? _hoverTile;
+    private Point? _selectedTile;
+    private float _zoom = 1.0f;
 
     public S32GridRenderPanel()
     {
         DoubleBuffered = true;
         BackColor = Color.FromArgb(24, 24, 24);
+        SetStyle(ControlStyles.Selectable, true);
+        TabStop = true;
+    }
+
+    public float Zoom => _zoom;
+
+    public void ZoomIn()
+    {
+        SetZoom(_zoom + 0.25f);
+    }
+
+    public void ZoomOut()
+    {
+        SetZoom(_zoom - 0.25f);
+    }
+
+    public void ResetZoom()
+    {
+        SetZoom(1.0f);
+    }
+
+    public void SetZoom(float zoom)
+    {
+        _zoom = Math.Clamp(zoom, 0.5f, 4.0f);
+        Invalidate();
     }
 
     public void SetMap(S32Info? mapInfo)
     {
         _currentMap = mapInfo;
         _layerSample = null;
+        _hoverTile = null;
+        _selectedTile = null;
 
         if (mapInfo is not null)
         {
@@ -36,6 +68,41 @@ public sealed class S32GridRenderPanel : Panel
     {
         _tileResourceSet = tileResourceSet;
         Invalidate();
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        _hoverTile = TryGetTileAt(e.Location);
+        Invalidate();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        _hoverTile = null;
+        Invalidate();
+    }
+
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        base.OnMouseClick(e);
+        Focus();
+        _selectedTile = TryGetTileAt(e.Location);
+        Invalidate();
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        if (e.Delta > 0)
+        {
+            ZoomIn();
+        }
+        else if (e.Delta < 0)
+        {
+            ZoomOut();
+        }
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -65,11 +132,15 @@ public sealed class S32GridRenderPanel : Panel
 
     private void DrawLayer1ColorGrid(Graphics graphics, S32LayerSample sample)
     {
-        var cellSize = Math.Max(3, Math.Min(8, Math.Min(Width / S32LayerSample.Width, Math.Max(1, (Height - 120) / S32LayerSample.Height))));
+        var baseCellSize = Math.Max(3, Math.Min(8, Math.Min(Width / S32LayerSample.Width, Math.Max(1, (Height - 140) / S32LayerSample.Height))));
+        var cellSize = Math.Max(2, (int)Math.Round(baseCellSize * _zoom));
         var gridWidth = S32LayerSample.Width * cellSize;
         var gridHeight = S32LayerSample.Height * cellSize;
         var startX = Math.Max(12, (Width - gridWidth) / 2);
-        var startY = 120;
+        var startY = 140;
+
+        _lastCellSize = cellSize;
+        _lastGridBounds = new Rectangle(startX, startY, gridWidth, gridHeight);
 
         for (var y = 0; y < S32LayerSample.Height; y++)
         {
@@ -82,7 +153,59 @@ public sealed class S32GridRenderPanel : Panel
         }
 
         using var borderPen = new Pen(Color.FromArgb(180, 220, 220, 220));
-        graphics.DrawRectangle(borderPen, startX, startY, gridWidth, gridHeight);
+        graphics.DrawRectangle(borderPen, _lastGridBounds);
+
+        DrawTileMarker(graphics, _hoverTile, Color.White, 1);
+        DrawTileMarker(graphics, _selectedTile, Color.Yellow, 2);
+    }
+
+    private void DrawTileMarker(Graphics graphics, Point? tilePoint, Color color, int width)
+    {
+        if (tilePoint is null || _lastCellSize <= 0 || _lastGridBounds.IsEmpty)
+        {
+            return;
+        }
+
+        var point = tilePoint.Value;
+        if (point.X < 0 || point.X >= S32LayerSample.Width || point.Y < 0 || point.Y >= S32LayerSample.Height)
+        {
+            return;
+        }
+
+        using var pen = new Pen(color, width);
+        graphics.DrawRectangle(
+            pen,
+            _lastGridBounds.Left + point.X * _lastCellSize,
+            _lastGridBounds.Top + point.Y * _lastCellSize,
+            _lastCellSize,
+            _lastCellSize);
+    }
+
+    private Point? TryGetTileAt(Point location)
+    {
+        if (_layerSample?.HasLayer1 != true || _lastCellSize <= 0 || !_lastGridBounds.Contains(location))
+        {
+            return null;
+        }
+
+        var x = (location.X - _lastGridBounds.Left) / _lastCellSize;
+        var y = (location.Y - _lastGridBounds.Top) / _lastCellSize;
+        if (x < 0 || x >= S32LayerSample.Width || y < 0 || y >= S32LayerSample.Height)
+        {
+            return null;
+        }
+
+        return new Point(x, y);
+    }
+
+    private ushort? GetTileId(Point? tilePoint)
+    {
+        if (tilePoint is null || _layerSample?.HasLayer1 != true)
+        {
+            return null;
+        }
+
+        return _layerSample.GetTileId(tilePoint.Value.X, tilePoint.Value.Y);
     }
 
     private static Color BuildTileColor(ushort tileId)
@@ -100,6 +223,9 @@ public sealed class S32GridRenderPanel : Panel
 
     private void DrawIsoGrid(Graphics graphics)
     {
+        _lastGridBounds = Rectangle.Empty;
+        _lastCellSize = 0;
+
         var centerX = Width / 2;
         var startY = 60;
         const int tileW = 24;
@@ -141,12 +267,18 @@ public sealed class S32GridRenderPanel : Panel
             ? $"Layer1 sample: {_layerSample.Count:N0} tile IDs / {_layerSample.BytesRead:N0} bytes"
             : "Layer1 sample: unavailable";
 
+        var hoverTileId = GetTileId(_hoverTile);
+        var selectedTileId = GetTileId(_selectedTile);
+
         var lines = new List<string>
         {
             $"S32: {_currentMap!.FileName}",
             $"Coord: {(_currentMap.Coordinate is null ? "unknown" : _currentMap.Coordinate.ToString())}",
             $"Size: {_currentMap.FileSize:N0} bytes",
             layerText,
+            $"Zoom: {_zoom:0.00}x",
+            $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
+            $"Selected: {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}"
         };
 
@@ -155,6 +287,16 @@ public sealed class S32GridRenderPanel : Panel
         {
             graphics.DrawString(lines[i], font, dimBrush, 12, 38 + i * 20);
         }
+    }
+
+    private static string FormatTile(Point? point, ushort? tileId)
+    {
+        if (point is null || tileId is null)
+        {
+            return "-";
+        }
+
+        return $"x={point.Value.X}, y={point.Value.Y}, tileId={tileId.Value}";
     }
 
     private void DrawCenteredText(Graphics graphics, string text)
