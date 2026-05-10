@@ -306,6 +306,8 @@ public sealed class MainForm : Form
 
     private TabPage CreateMapPage()
     {
+        Map.TileResourceSet? tileResourceSet = null;
+
         var page = new TabPage("S32 Map");
         var layout = new TableLayoutPanel
         {
@@ -325,8 +327,18 @@ public sealed class MainForm : Form
 
         var openMapButton = new Button { Text = "S32 열기", AutoSize = true };
         var openFolderButton = new Button { Text = "지도 폴더 스캔", AutoSize = true };
+        var openTileButton = new Button { Text = "Tile.idx 열기", AutoSize = true };
+        var tileStatusLabel = new Label
+        {
+            Text = "Tile: not loaded",
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(12, 8, 0, 0)
+        };
         toolbar.Controls.Add(openMapButton);
         toolbar.Controls.Add(openFolderButton);
+        toolbar.Controls.Add(openTileButton);
+        toolbar.Controls.Add(tileStatusLabel);
 
         var split = new SplitContainer
         {
@@ -358,22 +370,23 @@ public sealed class MainForm : Form
             ScrollBars = ScrollBars.Both,
             Font = new Font(FontFamily.GenericMonospace, 10)
         };
-        var mapRenderPlaceholder = new Panel
+        var tileInfoBox = new TextBox
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(32, 32, 32)
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font(FontFamily.GenericMonospace, 10),
+            Text = "Tile.idx를 열면 이곳에 타일 리소스 상태가 표시됩니다."
         };
-        var placeholderLabel = new Label
+        var mapRenderPanel = new Map.S32GridRenderPanel
         {
-            Dock = DockStyle.Fill,
-            ForeColor = Color.White,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Text = "S32 렌더링 영역\n다음 단계에서 Tile.idx 연동 렌더러를 연결합니다."
+            Dock = DockStyle.Fill
         };
-        mapRenderPlaceholder.Controls.Add(placeholderLabel);
 
         mapPreviewTabs.TabPages.Add(new TabPage("Info") { Controls = { mapInfoBox } });
-        mapPreviewTabs.TabPages.Add(new TabPage("Render") { Controls = { mapRenderPlaceholder } });
+        mapPreviewTabs.TabPages.Add(new TabPage("Render") { Controls = { mapRenderPanel } });
+        mapPreviewTabs.TabPages.Add(new TabPage("Tile") { Controls = { tileInfoBox } });
 
         split.Panel1.Controls.Add(mapList);
         split.Panel2.Controls.Add(mapPreviewTabs);
@@ -383,6 +396,7 @@ public sealed class MainForm : Form
             if (mapList.SelectedItems.Count == 1 && mapList.SelectedItems[0].Tag is Map.S32Info info)
             {
                 mapInfoBox.Text = info.ToDisplayText();
+                mapRenderPanel.SetMap(info);
                 mapPreviewTabs.SelectedIndex = 0;
             }
         };
@@ -404,6 +418,8 @@ public sealed class MainForm : Form
             mapList.Items.Clear();
             AddS32Item(mapList, info);
             mapInfoBox.Text = info.ToDisplayText();
+            mapRenderPanel.SetMap(info);
+            mapPreviewTabs.SelectedIndex = 1;
             WriteLog("S32 analyzed: " + dialog.FileName);
         };
 
@@ -429,12 +445,43 @@ public sealed class MainForm : Form
                 }
 
                 mapInfoBox.Text = $"Folder: {dialog.SelectedPath}{Environment.NewLine}S32 files: {infos.Count:N0}";
+                mapRenderPanel.SetMap(infos.FirstOrDefault());
+                mapPreviewTabs.SelectedIndex = infos.Count > 0 ? 1 : 0;
                 WriteLog($"Map folder scanned: {dialog.SelectedPath}, s32={infos.Count}");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "S32 scan failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 WriteLog("S32 scan failed: " + ex.Message);
+            }
+        };
+
+        openTileButton.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Title = "Tile.idx 파일 선택",
+                Filter = "IDX files (*.idx)|*.idx|All files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                tileResourceSet = Map.TileResourceSet.Load(dialog.FileName);
+                mapRenderPanel.SetTileResource(tileResourceSet);
+                tileInfoBox.Text = tileResourceSet.ToDisplayText();
+                tileStatusLabel.Text = $"Tile: {tileResourceSet.ExtractableRecords:N0}/{tileResourceSet.TotalRecords:N0}";
+                mapPreviewTabs.SelectedIndex = 2;
+                WriteLog("Tile.idx loaded: " + dialog.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Tile.idx load failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WriteLog("Tile.idx load failed: " + ex.Message);
             }
         };
 
