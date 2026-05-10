@@ -212,6 +212,17 @@
 - list.spr 로드 시 Sprite 패널에 catalog 전달
 - 실제 SPR 프레임 디코더 이식 전 전용 UI 흐름 구성
 
+## 21차 완료
+
+- Sprite 패널에 `SPR 진단` 버튼 추가
+- Sprite 패널에 `SPR 추출` 버튼 추가
+- Sprite 패널에 `정보 저장` 버튼 추가
+- IDX 로드 시 Sprite 패널에 IDX 경로 전달
+- 선택한 Sprite entry의 매핑된 `.spr` 바이트 HEX preview 추가
+- 매핑된 `.spr` 리소스 개별 추출 기능 추가
+- Sprite 매핑/진단 정보 TXT 저장 기능 추가
+- 실제 SPR 프레임 디코더 이식 전 검증 편의 기능 구성
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -259,12 +270,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-21차에서는 SPR 디코더 이식 전 진단 기능을 보강한다.
+22차에서는 실제 SPR 프레임 디코더 이식 준비를 시작한다.
 
-- SPR 선택 entry의 리소스 바이트 HEX preview 추가
-- Sprite 패널에서 매핑된 `.spr` 추출 기능 추가
-- Sprite 패널에서 매핑 정보 TXT 저장 추가
-- 실제 SPR 프레임 디코더 이식 전 검증 편의 기능 구성
+- SPR 파일 헤더 후보 구조 분석 모델 추가
+- Sprite 패널에 SPR 헤더 필드 후보 표시
+- 프레임 개수/방향/팔레트 후보 추정 로직 추가
+- 원본 PakViewer의 SPR/list.spr 흐름을 기준으로 디코더 이식 범위 선정
 
 ## 주의사항
 
