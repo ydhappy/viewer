@@ -141,7 +141,7 @@ public static class L1ImageFormatDecoder
         for (var row = 0; row < yLength && index < blockData.Length; row++)
         {
             var segmentCount = blockData[index++];
-            var currentX = xOffset;
+            var currentX = (int)xOffset;
 
             for (var segment = 0; segment < segmentCount && index < blockData.Length; segment++)
             {
