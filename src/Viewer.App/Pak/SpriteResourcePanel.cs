@@ -4,6 +4,9 @@ public sealed class SpriteResourcePanel : UserControl
 {
     private readonly TextBox _filterBox = new();
     private readonly Button _filterButton = new();
+    private readonly Button _diagnosticsButton = new();
+    private readonly Button _extractButton = new();
+    private readonly Button _saveInfoButton = new();
     private readonly ListView _entryList = new();
     private readonly TextBox _detailBox = new();
     private readonly Panel _renderPlaceholder = new();
@@ -11,6 +14,7 @@ public sealed class SpriteResourcePanel : UserControl
     private SpriteListCatalog? _catalog;
     private IReadOnlyList<IdxRecord> _records = Array.Empty<IdxRecord>();
     private IReadOnlyList<SpriteListEntry> _visibleEntries = Array.Empty<SpriteListEntry>();
+    private string? _idxPath;
 
     public SpriteResourcePanel()
     {
@@ -36,9 +40,19 @@ public sealed class SpriteResourcePanel : UserControl
         _filterBox.PlaceholderText = "Sprite ID / 이름 / 그룹 / 액션";
         _filterButton.Text = "검색";
         _filterButton.AutoSize = true;
+        _diagnosticsButton.Text = "SPR 진단";
+        _diagnosticsButton.AutoSize = true;
+        _extractButton.Text = "SPR 추출";
+        _extractButton.AutoSize = true;
+        _saveInfoButton.Text = "정보 저장";
+        _saveInfoButton.AutoSize = true;
+
         toolbar.Controls.Add(new Label { Text = "Sprite 검색", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_filterBox);
         toolbar.Controls.Add(_filterButton);
+        toolbar.Controls.Add(_diagnosticsButton);
+        toolbar.Controls.Add(_extractButton);
+        toolbar.Controls.Add(_saveInfoButton);
 
         var split = new SplitContainer
         {
@@ -82,6 +96,9 @@ public sealed class SpriteResourcePanel : UserControl
         Controls.Add(layout);
 
         _filterButton.Click += (_, _) => ApplyFilter();
+        _diagnosticsButton.Click += (_, _) => ShowSprDiagnostics();
+        _extractButton.Click += (_, _) => ExtractSelectedSpr();
+        _saveInfoButton.Click += (_, _) => SaveCurrentInfo();
         _filterBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -99,9 +116,10 @@ public sealed class SpriteResourcePanel : UserControl
         ApplyFilter();
     }
 
-    public void SetRecords(IReadOnlyList<IdxRecord> records)
+    public void SetRecords(IReadOnlyList<IdxRecord> records, string? idxPath = null)
     {
         _records = records;
+        _idxPath = idxPath;
         ShowInitialState();
     }
 
@@ -139,6 +157,7 @@ public sealed class SpriteResourcePanel : UserControl
         _detailBox.Text = _catalog.ToDisplayText() + Environment.NewLine + Environment.NewLine +
             $"Visible Entries: {_entryList.Items.Count:N0}" + Environment.NewLine +
             $"SPR Records    : {CountSprRecords():N0}" + Environment.NewLine +
+            $"IDX Path       : {(_idxPath ?? "-")}" + Environment.NewLine +
             "※ 목록은 UI 부하를 막기 위해 최대 5,000개까지만 표시합니다.";
         _renderPlaceholder.Invalidate();
     }
@@ -152,6 +171,7 @@ public sealed class SpriteResourcePanel : UserControl
                 "Sprite Resource",
                 "===============",
                 $"SPR Records: {CountSprRecords():N0}",
+                $"IDX Path   : {(_idxPath ?? "-")}",
                 string.Empty,
                 "list.spr catalog is not loaded.",
                 "PAK 탭에서 list.spr 열기를 먼저 실행하세요.");
@@ -176,7 +196,8 @@ public sealed class SpriteResourcePanel : UserControl
 
     private void ShowSelectedEntry()
     {
-        if (_entryList.SelectedItems.Count != 1 || _entryList.SelectedItems[0].Tag is not SpriteListEntry entry)
+        var entry = GetSelectedEntry();
+        if (entry is null)
         {
             return;
         }
@@ -216,8 +237,124 @@ public sealed class SpriteResourcePanel : UserControl
         lines.Add("==================");
         lines.Add("실제 SPR 프레임 디코더는 아직 연결되지 않았습니다.");
         lines.Add("다음 단계에서 프레임/방향/액션 단위 디코더를 이식합니다.");
+        lines.Add("SPR 진단 버튼으로 매핑된 .spr 바이트 HEX preview를 확인할 수 있습니다.");
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private void ShowSprDiagnostics()
+    {
+        var selected = GetSelectedEntry();
+        if (selected is null)
+        {
+            _detailBox.Text = "진단할 Sprite entry를 먼저 선택하세요.";
+            return;
+        }
+
+        var record = FindSprRecord(selected);
+        if (record is null)
+        {
+            _detailBox.Text = BuildEntryDetail(selected, null) + Environment.NewLine + Environment.NewLine + "SPR 진단 실패: 매핑된 .spr 레코드가 없습니다.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_idxPath))
+        {
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 진단 실패: IDX 경로가 없습니다. PAK 탭에서 IDX를 다시 여세요.";
+            return;
+        }
+
+        try
+        {
+            var pakPath = PakExtractor.ResolvePakPath(_idxPath);
+            var data = PakExtractor.ReadBytes(pakPath, record);
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine +
+                "SPR Byte Diagnostics" + Environment.NewLine +
+                "====================" + Environment.NewLine +
+                $"PAK Path : {pakPath}" + Environment.NewLine +
+                $"Bytes    : {data.Length:N0}" + Environment.NewLine +
+                $"Signature: {BuildSignature(data)}" + Environment.NewLine +
+                string.Empty + Environment.NewLine +
+                "HEX Preview" + Environment.NewLine +
+                "-----------" + Environment.NewLine +
+                PreviewHelper.ToHexPreview(data, 1024);
+        }
+        catch (Exception ex)
+        {
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 진단 실패: " + ex.Message;
+        }
+    }
+
+    private void ExtractSelectedSpr()
+    {
+        var selected = GetSelectedEntry();
+        if (selected is null)
+        {
+            _detailBox.Text = "추출할 Sprite entry를 먼저 선택하세요.";
+            return;
+        }
+
+        var record = FindSprRecord(selected);
+        if (record is null)
+        {
+            _detailBox.Text = BuildEntryDetail(selected, null) + Environment.NewLine + Environment.NewLine + "SPR 추출 실패: 매핑된 .spr 레코드가 없습니다.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_idxPath))
+        {
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 추출 실패: IDX 경로가 없습니다. PAK 탭에서 IDX를 다시 여세요.";
+            return;
+        }
+
+        using var dialog = new FolderBrowserDialog
+        {
+            Description = "매핑된 SPR 리소스를 추출할 폴더 선택"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            var pakPath = PakExtractor.ResolvePakPath(_idxPath);
+            var outputPath = PakExtractor.Extract(pakPath, record, dialog.SelectedPath);
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 추출 완료: " + outputPath;
+        }
+        catch (Exception ex)
+        {
+            _detailBox.Text = BuildEntryDetail(selected, record) + Environment.NewLine + Environment.NewLine + "SPR 추출 실패: " + ex.Message;
+        }
+    }
+
+    private void SaveCurrentInfo()
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Sprite 매핑 정보 저장",
+            Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = "sprite-info.txt"
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        File.WriteAllText(dialog.FileName, _detailBox.Text, System.Text.Encoding.UTF8);
+        _detailBox.Text += Environment.NewLine + Environment.NewLine + "정보 저장 완료: " + dialog.FileName;
+    }
+
+    private SpriteListEntry? GetSelectedEntry()
+    {
+        if (_entryList.SelectedItems.Count != 1)
+        {
+            return null;
+        }
+
+        return _entryList.SelectedItems[0].Tag as SpriteListEntry;
     }
 
     private IdxRecord? FindSprRecord(SpriteListEntry entry)
@@ -246,6 +383,16 @@ public sealed class SpriteResourcePanel : UserControl
         return _records.Count(record => Path.GetExtension(record.FileName).Equals(".spr", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static string BuildSignature(byte[] data)
+    {
+        if (data.Length == 0)
+        {
+            return "empty";
+        }
+
+        return string.Join(' ', data.Take(Math.Min(16, data.Length)).Select(value => value.ToString("X2")));
+    }
+
     private void DrawRenderPlaceholder(Graphics graphics)
     {
         graphics.Clear(_renderPlaceholder.BackColor);
@@ -259,6 +406,7 @@ public sealed class SpriteResourcePanel : UserControl
         graphics.DrawRectangle(borderPen, rect);
         graphics.DrawString("SPR Renderer Placeholder", titleFont, titleBrush, 32, 24);
         graphics.DrawString("list.spr entry와 PAK .spr record 매핑은 준비되었습니다.", font, brush, 44, 92);
-        graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 118);
+        graphics.DrawString("SPR 진단/추출/정보 저장 기능도 연결되었습니다.", font, brush, 44, 118);
+        graphics.DrawString("실제 프레임 디코딩/팔레트/방향별 렌더링은 다음 단계에서 연결합니다.", font, brush, 44, 144);
     }
 }
