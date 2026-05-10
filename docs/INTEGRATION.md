@@ -138,6 +138,19 @@
 - 직접 이미지 변환 성공 시 Tile 패널 Image 탭에 미리보기 표시
 - Tile 패널 레코드 목록에 Kind 컬럼 추가
 
+## 14차 완료
+
+- `ITileResourceConverter` 인터페이스 추가
+- `DirectImageTileResourceConverter` 추가
+- `PlaceholderTileResourceConverter` 추가
+- `UnsupportedTileResourceConverter` 추가
+- `TileResourceConverterRegistry` 추가
+- DirectImage/TIL/IMG/SPR/TBT/Text 변환기 등록 파이프라인 추가
+- `DefaultTileImageCache`가 변환기 레지스트리에서 적절한 변환기를 선택하도록 변경
+- 변환 결과에 `ConverterName` 표시 추가
+- Tile 패널에 `변환기 목록` 버튼 추가
+- Tile 레코드 선택 시 사용될 변환기 이름 표시
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -185,13 +198,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-14차에서는 변환기 확장 포인트를 더 분리한다.
+15차에서는 실제 포맷 분석 보강을 우선한다.
 
-- `ITileResourceConverter` 인터페이스 추가
-- DirectImage/TIL/IMG/SPR 변환기 클래스를 분리
-- 변환기 등록/선택 파이프라인 추가
-- Tile 패널에서 사용 가능한 변환기 목록 표시
-- 이후 TIL/IMG 실제 변환 로직 흡수
+- TIL/IMG/Spr 파일 헤더 분석 결과 표시
+- 변환기별 상세 진단 메시지 추가
+- Tile 패널에서 변환 대상 바이트 HEX preview 표시
+- 실제 TIL/IMG 변환 로직 흡수 준비
+- 이후 원본 PakViewer의 리소스 변환 로직 분석/이식
 
 ## 주의사항
 
