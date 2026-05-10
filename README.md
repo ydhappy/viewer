@@ -97,6 +97,16 @@
 
 ## 빌드
 
+GitHub Actions 자동 빌드가 적용되어 있습니다.
+
+```text
+.github/workflows/build.yml
+```
+
+자동 빌드는 `main` 브랜치 push, pull request, 수동 실행(`workflow_dispatch`)에서 Windows 환경으로 수행됩니다.
+
+로컬 빌드:
+
 ```powershell
 .\scripts\build.ps1
 ```
@@ -105,7 +115,7 @@
 
 ```powershell
 dotnet restore .\Viewer.sln
-dotnet build .\Viewer.sln -c Release
+dotnet build .\Viewer.sln -c Release --no-restore
 ```
 
 ## 실행
@@ -126,6 +136,9 @@ dotnet run --project .\src\Viewer.App\Viewer.App.csproj
 viewer/
 ├─ Viewer.sln
 ├─ README.md
+├─ .github/
+│  └─ workflows/
+│     └─ build.yml
 ├─ scripts/
 │  ├─ build.ps1
 │  └─ run.ps1
