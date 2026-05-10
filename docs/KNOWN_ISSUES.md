@@ -13,7 +13,9 @@
 - list.spr 실제 포맷이 다른 경우 Sprite ID / 이름 / 그룹 / 액션 매핑이 부정확할 수 있다.
 - `.spr` record 역매핑은 `record.Index`, 숫자 파일명, 파일명 이름 match 후보 기반이다.
 - SPR header analysis는 실제 구조 확정이 아니라 frame count / direction / palette / frame bytes 후보 추정이다.
-- SPR Raw Preview는 실제 SPR 렌더링이 아니라 후보 payload 회색조 시각화이다.
+- `ISpriteFrameDecoder` registry는 실제 디코더 교체를 위한 구조이며 현재 기본 실제 디코더는 없다.
+- 현재 등록된 `RawPreviewSpriteFrameDecoder`는 실제 SPR 렌더러가 아니라 후보 데이터 회색조 fallback decoder이다.
+- SPR Raw Preview는 실제 SPR 렌더링이 아니라 후보 데이터 회색조 시각화이다.
 - Raw Preview의 width / offset / frame index / zoom 수동 조정은 디코더 이식 전 검증 보조 도구이다.
 - SPR 실제 프레임 디코더, 팔레트 적용, 방향별 렌더링은 아직 구현되지 않았다.
 - Raw Preview PNG 저장은 현재 화면에 표시된 후보 시각화 이미지만 저장한다.
