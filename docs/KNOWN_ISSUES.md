@@ -7,6 +7,17 @@
 - `_EXTB$` 확장 IDX는 아직 지원하지 않는다.
 - IDX 포맷이 다른 클라이언트에서는 목록/offset/size가 정확하지 않을 수 있다.
 
+## Sprite / SPR
+
+- list.spr 파서는 텍스트/CSV/탭/공백 구분 후보를 관대한 방식으로 읽는다.
+- list.spr 실제 포맷이 다른 경우 Sprite ID / 이름 / 그룹 / 액션 매핑이 부정확할 수 있다.
+- `.spr` record 역매핑은 `record.Index`, 숫자 파일명, 파일명 이름 match 후보 기반이다.
+- SPR header analysis는 실제 구조 확정이 아니라 frame count / direction / palette / frame bytes 후보 추정이다.
+- SPR Raw Preview는 실제 SPR 렌더링이 아니라 후보 payload 회색조 시각화이다.
+- Raw Preview의 width / offset / frame index / zoom 수동 조정은 디코더 이식 전 검증 보조 도구이다.
+- SPR 실제 프레임 디코더, 팔레트 적용, 방향별 렌더링은 아직 구현되지 않았다.
+- Raw Preview PNG 저장은 현재 화면에 표시된 후보 시각화 이미지만 저장한다.
+
 ## Tile Resource
 
 - PNG/BMP/JPG/JPEG/GIF 같은 일반 이미지 포맷만 직접 변환을 시도한다.
