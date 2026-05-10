@@ -27,6 +27,9 @@ public sealed class S32GridRenderPanel : Panel
     private int _tileImageDrawAttemptLimit = DefaultTileImageDrawAttemptsPerPaint;
     private bool _tileImageRenderEnabled = true;
     private S32RenderMode _renderMode = S32RenderMode.ColorGrid;
+    private Point _isoPanOffset = Point.Empty;
+    private bool _isPanning;
+    private Point _lastPanMouseLocation;
 
     public S32GridRenderPanel()
     {
@@ -102,6 +105,7 @@ public sealed class S32GridRenderPanel : Panel
             $"Path     : {(_currentMap is null ? "-" : _currentMap.FilePath)}",
             $"Mode     : {_renderMode}",
             $"Zoom     : {_zoom:0.00}x",
+            $"Pan      : x={_isoPanOffset.X}, y={_isoPanOffset.Y}",
             $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx : {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.IdxPath)}",
@@ -123,6 +127,12 @@ public sealed class S32GridRenderPanel : Panel
         SetZoom(1.0f);
     }
 
+    public void ResetPan()
+    {
+        _isoPanOffset = Point.Empty;
+        Invalidate();
+    }
+
     public void SetZoom(float zoom)
     {
         _zoom = Math.Clamp(zoom, 0.5f, 4.0f);
@@ -137,6 +147,7 @@ public sealed class S32GridRenderPanel : Panel
         _selectedTile = null;
         _lastTileImageAttemptCount = 0;
         _lastTileImageSuccessCount = 0;
+        _isoPanOffset = Point.Empty;
 
         if (mapInfo is not null)
         {
@@ -164,6 +175,16 @@ public sealed class S32GridRenderPanel : Panel
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_renderMode == S32RenderMode.IsoTile && _isPanning)
+        {
+            _isoPanOffset = new Point(
+                _isoPanOffset.X + e.Location.X - _lastPanMouseLocation.X,
+                _isoPanOffset.Y + e.Location.Y - _lastPanMouseLocation.Y);
+            _lastPanMouseLocation = e.Location;
+            Invalidate();
+            return;
+        }
+
         _hoverTile = TryGetTileAt(e.Location);
         Invalidate();
     }
@@ -172,15 +193,40 @@ public sealed class S32GridRenderPanel : Panel
     {
         base.OnMouseLeave(e);
         _hoverTile = null;
+        _isPanning = false;
         Invalidate();
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (_renderMode == S32RenderMode.IsoTile && e.Button == MouseButtons.Middle)
+        {
+            _isPanning = true;
+            _lastPanMouseLocation = e.Location;
+            Cursor = Cursors.SizeAll;
+        }
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (_isPanning && e.Button == MouseButtons.Middle)
+        {
+            _isPanning = false;
+            Cursor = Cursors.Default;
+        }
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         Focus();
-        _selectedTile = TryGetTileAt(e.Location);
-        Invalidate();
+        if (e.Button == MouseButtons.Left)
+        {
+            _selectedTile = TryGetTileAt(e.Location);
+            Invalidate();
+        }
     }
 
     protected override void OnMouseWheel(MouseEventArgs e)
@@ -267,6 +313,9 @@ public sealed class S32GridRenderPanel : Panel
         var resetZoom = new ToolStripMenuItem("Zoom 100%") { ShortcutKeyDisplayString = "Reset" };
         resetZoom.Click += (_, _) => ResetZoom();
 
+        var resetPan = new ToolStripMenuItem("Pan Reset") { ShortcutKeyDisplayString = "Middle drag" };
+        resetPan.Click += (_, _) => ResetPan();
+
         menu.Items.Add(colorGridMode);
         menu.Items.Add(isoTileMode);
         menu.Items.Add(new ToolStripSeparator());
@@ -277,6 +326,7 @@ public sealed class S32GridRenderPanel : Panel
         menu.Items.Add(resetLimit);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(resetZoom);
+        menu.Items.Add(resetPan);
         return menu;
     }
 
@@ -320,8 +370,8 @@ public sealed class S32GridRenderPanel : Panel
         using var borderPen = new Pen(Color.FromArgb(180, 220, 220, 220));
         graphics.DrawRectangle(borderPen, _lastGridBounds);
 
-        DrawTileMarker(graphics, _hoverTile, Color.White, 1);
-        DrawTileMarker(graphics, _selectedTile, Color.Yellow, 2);
+        DrawColorGridTileMarker(graphics, _hoverTile, Color.White, 1);
+        DrawColorGridTileMarker(graphics, _selectedTile, Color.Yellow, 2);
     }
 
     private void DrawLayer1IsoTiles(Graphics graphics, S32LayerSample sample)
@@ -331,7 +381,7 @@ public sealed class S32GridRenderPanel : Panel
         _lastTileImageAttemptCount = 0;
         _lastTileImageSuccessCount = 0;
 
-        var options = S32IsoTileLayoutOptions.Default(Width / 2, 120, _zoom);
+        var options = CreateIsoLayoutOptions();
         var canAttemptTileImages = _tileImageRenderEnabled && _tileResourceSet is not null && _tileImageDrawAttemptLimit > 0;
 
         using var gridPen = new Pen(Color.FromArgb(80, 180, 180, 180));
@@ -350,12 +400,21 @@ public sealed class S32GridRenderPanel : Panel
 
                 if (!imageDrawn)
                 {
+                    var diamond = S32IsoTileLayout.GetDiamond(x, y, options);
                     using var brush = new SolidBrush(BuildTileColor(tileId));
-                    graphics.FillPolygon(brush, S32IsoTileLayout.GetDiamond(x, y, options));
-                    graphics.DrawPolygon(gridPen, S32IsoTileLayout.GetDiamond(x, y, options));
+                    graphics.FillPolygon(brush, diamond);
+                    graphics.DrawPolygon(gridPen, diamond);
                 }
             }
         }
+
+        DrawIsoTileMarker(graphics, _hoverTile, Color.White, 1, options);
+        DrawIsoTileMarker(graphics, _selectedTile, Color.Yellow, 2, options);
+    }
+
+    private S32IsoTileLayoutOptions CreateIsoLayoutOptions()
+    {
+        return S32IsoTileLayoutOptions.Default(Width / 2 + _isoPanOffset.X, 120 + _isoPanOffset.Y, _zoom);
     }
 
     private bool TryDrawTileImage(Graphics graphics, ushort tileId, Rectangle target)
@@ -386,7 +445,7 @@ public sealed class S32GridRenderPanel : Panel
         return true;
     }
 
-    private void DrawTileMarker(Graphics graphics, Point? tilePoint, Color color, int width)
+    private void DrawColorGridTileMarker(Graphics graphics, Point? tilePoint, Color color, int width)
     {
         if (tilePoint is null || _lastCellSize <= 0 || _lastGridBounds.IsEmpty)
         {
@@ -408,14 +467,36 @@ public sealed class S32GridRenderPanel : Panel
             _lastCellSize);
     }
 
+    private static void DrawIsoTileMarker(Graphics graphics, Point? tilePoint, Color color, int width, S32IsoTileLayoutOptions options)
+    {
+        if (tilePoint is null)
+        {
+            return;
+        }
+
+        var point = tilePoint.Value;
+        if (point.X < 0 || point.X >= S32LayerSample.Width || point.Y < 0 || point.Y >= S32LayerSample.Height)
+        {
+            return;
+        }
+
+        using var pen = new Pen(color, width);
+        graphics.DrawPolygon(pen, S32IsoTileLayout.GetDiamond(point.X, point.Y, options));
+    }
+
     private Point? TryGetTileAt(Point location)
     {
-        if (_renderMode == S32RenderMode.IsoTile)
+        if (_layerSample?.HasLayer1 != true)
         {
             return null;
         }
 
-        if (_layerSample?.HasLayer1 != true || _lastCellSize <= 0 || !_lastGridBounds.Contains(location))
+        if (_renderMode == S32RenderMode.IsoTile)
+        {
+            return S32IsoTileLayout.TryFromScreenCandidate(location, S32LayerSample.Width, S32LayerSample.Height, CreateIsoLayoutOptions());
+        }
+
+        if (_lastCellSize <= 0 || !_lastGridBounds.Contains(location))
         {
             return null;
         }
@@ -511,13 +592,14 @@ public sealed class S32GridRenderPanel : Panel
             $"Coord: {(_currentMap.Coordinate is null ? "unknown" : _currentMap.Coordinate.ToString())}",
             $"Size: {_currentMap.FileSize:N0} bytes",
             $"Mode: {_renderMode}",
+            $"Pan: x={_isoPanOffset.X}, y={_isoPanOffset.Y}",
             layerText,
             $"Zoom: {_zoom:0.00}x",
             $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected: {FormatTile(_selectedTile, selectedTileId)}",
             $"Tile.idx: {(_tileResourceSet is null ? "not loaded" : _tileResourceSet.ExtractableRecords + "/" + _tileResourceSet.TotalRecords)}",
             tileImageText,
-            "Right click: render options"
+            "Right click: render options / Middle drag: pan"
         };
 
         graphics.DrawString(_layerSample?.HasLayer1 == true ? "Layer1 Tile Render" : "임시 Iso Grid Render", titleFont, brush, 12, 12);
