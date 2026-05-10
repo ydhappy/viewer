@@ -9,6 +9,7 @@ public enum PreviewKind
     Text,
     Image,
     Hex,
+    Special,
     Unsupported
 }
 
@@ -26,6 +27,11 @@ public static class PreviewHelper
 
     public static PreviewKind DetectKind(string fileName, byte[] data)
     {
+        if (SpecialResourceAnalyzer.IsSpecialResource(fileName))
+        {
+            return PreviewKind.Special;
+        }
+
         var extension = Path.GetExtension(fileName);
 
         if (TextExtensions.Contains(extension))
