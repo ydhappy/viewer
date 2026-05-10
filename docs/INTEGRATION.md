@@ -179,6 +179,16 @@
 - 실제 렌더링이 아닌 진단 이미지임을 결과 메시지와 Known Issues에 명확히 표시
 - TIL/IMG 변환 실패 시 기존 진단/HEX/fallback 흐름 유지
 
+## 18차 완료
+
+- RawByteDiagnostic 변환기에 최대 1MB 리소스 제한 추가
+- RawByteDiagnostic 이미지 최대 높이 제한 정리
+- Tile 패널에 `이미지 저장` 버튼 추가
+- Tile 패널에 `이미지 복사` 버튼 추가
+- 변환 결과 이미지를 PNG로 저장하는 기능 추가
+- 변환 결과 이미지를 클립보드에 복사하는 기능 추가
+- Known Issues에 Raw Byte 진단 이미지 크기 제한과 저장/복사 범위 기록
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -226,13 +236,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-18차에서는 실제 포맷 이식 전 안정성을 더 높인다.
+19차에서는 SPR/list.spr 흐름을 별도 모듈로 준비한다.
 
-- RawByteDiagnostic 변환기 성능 보강
-- 대용량 리소스 변환 제한 추가
-- 변환 결과 이미지 저장 기능 추가
-- Tile 패널에서 변환 결과 이미지 저장/복사 기능 추가
-- 이후 원본 PakViewer의 SPR/list.spr 흐름을 별도 모듈로 흡수
+- list.spr 파일 선택/파싱 자리 추가
+- SPR ID와 SPR 레코드 매핑 구조 추가
+- Sprite 그룹/액션/프레임 표시 모델 준비
+- 실제 SPR 렌더러 이식 전 데이터 흐름 구성
 
 ## 주의사항
 
