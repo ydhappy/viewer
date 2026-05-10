@@ -28,47 +28,62 @@ public static class PakExtractor
     {
         if (!record.CanExtract)
         {
-            throw new InvalidOperationException("읽기 가능 판정이 된 레코드가 아닙니다.");
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("읽기 가능 판정이 된 레코드가 아닙니다.", record, pakPath));
         }
 
         if (!File.Exists(pakPath))
         {
-            throw new FileNotFoundException("PAK 파일을 찾을 수 없습니다.", pakPath);
+            throw new FileNotFoundException(PakRecordDiagnostics.BuildFailureMessage("PAK 파일을 찾을 수 없습니다.", record, pakPath), pakPath);
         }
 
+        var pakSize = new FileInfo(pakPath).Length;
         if (record.Size <= 0)
         {
-            throw new InvalidOperationException("읽을 수 있는 레코드 크기가 아닙니다.");
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("읽을 수 있는 레코드 크기가 아닙니다.", record, pakPath, pakSize));
         }
 
         if (record.Offset < 0)
         {
-            throw new InvalidOperationException("읽을 수 있는 레코드 오프셋이 아닙니다.");
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("읽을 수 있는 레코드 오프셋이 아닙니다.", record, pakPath, pakSize));
         }
 
         using var input = new FileStream(pakPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         var bytesToRead = record.Compression == 0 ? record.Size : record.CompressedSize.GetValueOrDefault();
         if (bytesToRead <= 0)
         {
-            throw new InvalidOperationException("압축 레코드의 읽기 크기를 계산할 수 없습니다.");
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("압축 레코드의 읽기 크기를 계산할 수 없습니다.", record, pakPath, pakSize));
         }
 
         if (record.Offset + bytesToRead > input.Length)
         {
-            throw new InvalidOperationException("레코드 범위가 PAK 파일 크기를 초과합니다.");
+            throw new InvalidOperationException(PakRecordDiagnostics.BuildFailureMessage("레코드 범위가 PAK 파일 크기를 초과합니다.", record, pakPath, pakSize));
         }
 
         input.Seek(record.Offset, SeekOrigin.Begin);
         var data = new byte[bytesToRead];
-        ReadExactly(input, data);
-
-        return record.Compression switch
+        try
         {
-            0 => TrimUncompressed(data, record.Size),
-            1 => DecompressZlib(data, record.Size),
-            2 => DecompressBrotli(data, record.Size),
-            _ => throw new NotSupportedException($"지원하지 않는 ExtB compression type입니다: {record.Compression}")
-        };
+            ReadExactly(input, data);
+        }
+        catch (Exception ex)
+        {
+            throw new IOException(PakRecordDiagnostics.BuildFailureMessage("PAK 레코드 바이트 읽기에 실패했습니다.", record, pakPath, pakSize, ex), ex);
+        }
+
+        try
+        {
+            return record.Compression switch
+            {
+                0 => TrimUncompressed(data, record.Size),
+                1 => DecompressZlib(data, record.Size),
+                2 => DecompressBrotli(data, record.Size),
+                _ => throw new NotSupportedException($"지원하지 않는 ExtB compression type입니다: {record.Compression}")
+            };
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidDataException(PakRecordDiagnostics.BuildFailureMessage("PAK 레코드 압축 해제/변환에 실패했습니다.", record, pakPath, pakSize, ex), ex);
+        }
     }
 
     public static string Extract(string pakPath, IdxRecord record, string outputDirectory)
