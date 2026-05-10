@@ -6,6 +6,7 @@ public sealed class MainForm : Form
 {
     private readonly TabControl _tabs = new();
     private readonly TextBox _logBox = new();
+    private readonly Pak.SpriteResourcePanel _spritePanel = new();
 
     private string? _currentIdxPath;
     private List<Pak.IdxRecord> _currentPakRecords = new();
@@ -20,6 +21,7 @@ public sealed class MainForm : Form
 
         _tabs.Dock = DockStyle.Fill;
         _tabs.TabPages.Add(CreatePakPage());
+        _tabs.TabPages.Add(CreateSpritePage());
         _tabs.TabPages.Add(CreateMapPage());
         _tabs.TabPages.Add(CreateLogPage());
 
@@ -159,6 +161,7 @@ public sealed class MainForm : Form
 
                 _currentIdxPath = dialog.FileName;
                 _currentPakRecords = Pak.IdxParser.Parse(dialog.FileName);
+                _spritePanel.SetRecords(_currentPakRecords);
 
                 foreach (var record in _currentPakRecords)
                 {
@@ -201,6 +204,7 @@ public sealed class MainForm : Form
             try
             {
                 _spriteListCatalog = Pak.SpriteListParser.Parse(dialog.FileName);
+                _spritePanel.SetCatalog(_spriteListCatalog);
                 specialPreview.Text = _spriteListCatalog.ToDisplayText();
                 previewTabs.SelectedIndex = 2;
                 WriteLog($"list.spr loaded: {dialog.FileName}, entries={_spriteListCatalog.Entries.Count}");
@@ -268,6 +272,13 @@ public sealed class MainForm : Form
         layout.Controls.Add(toolbar, 0, 0);
         layout.Controls.Add(split, 0, 1);
         page.Controls.Add(layout);
+        return page;
+    }
+
+    private TabPage CreateSpritePage()
+    {
+        var page = new TabPage("Sprite");
+        page.Controls.Add(_spritePanel);
         return page;
     }
 
