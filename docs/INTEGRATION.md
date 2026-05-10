@@ -269,6 +269,19 @@
 - SPR Raw Preview가 실제 렌더링이 아닌 후보 payload 시각화임을 문서화
 - 다음 실제 SPR 디코더 이식 전 안정화 기준점 정리
 
+## 26차 완료
+
+- PakViewer 원본에서 SPR/list.spr/이미지 처리 후보를 재탐색했으나 독립 SPR decoder 파일은 확인되지 않음
+- `SpriteFrameDecodeRequest` 추가
+- `SpriteFrameDecodeResult` 추가
+- `ISpriteFrameDecoder` 인터페이스 추가
+- `RawPreviewSpriteFrameDecoder` 추가
+- `PlaceholderSpriteFrameDecoder` 추가
+- `SpriteFrameDecoderRegistry` 추가
+- Sprite 패널 raw preview 생성 흐름을 decoder registry 경유로 변경
+- 등록 decoder 목록을 Sprite 패널 Detail에 표시
+- 실제 SPR 디코더를 별도 구현체로 추가할 수 있는 구조 마련
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -316,12 +329,11 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-26차에서는 원본 SPR 디코더 이식 후보를 다시 찾고, 가능하면 최소 프레임 디코더 인터페이스를 추가한다.
+27차에서는 디코더 구조 안정성과 빌드 영향 가능성을 점검한다.
 
-- PakViewer 원본 코드에서 SPR/list.spr/이미지 처리 후보 재탐색
-- `ISpriteFrameDecoder` 인터페이스 추가
-- placeholder decoder와 raw preview decoder 분리
-- 실제 디코더 이식 가능 범위 선정
+- SpriteFrameDecoder/SpriteResourcePanel nullable 영향 확인
+- README/KNOWN_ISSUES에 decoder registry 한계 반영
+- 이후 IDX 보호/확장 포맷 또는 실제 SPR 디코더 중 우선순위 선정
 
 ## 주의사항
 
