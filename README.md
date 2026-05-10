@@ -35,6 +35,8 @@
 - SPR 바이트 HEX preview
 - SPR 헤더 후보 분석
 - Frame Count / Direction Count / Palette Size / Frame Bytes 후보 추정
+- `ISpriteFrameDecoder` 기반 SPR frame decoder registry
+- RawPreview fallback decoder
 - SPR raw byte 저장
 - 후보 payload 회색조 Raw Preview 표시
 - Raw Preview width / offset / frame index / zoom 수동 조정
@@ -124,6 +126,7 @@ viewer/
    │  ├─ PakExtractor.cs
    │  ├─ PreviewHelper.cs
    │  ├─ SpecialResourceInfo.cs
+   │  ├─ SpriteFrameDecoder.cs
    │  ├─ SpriteHeaderAnalysis.cs
    │  ├─ SpriteListEntry.cs
    │  ├─ SpriteListParser.cs
