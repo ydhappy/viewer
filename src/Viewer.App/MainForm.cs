@@ -38,9 +38,11 @@ public sealed class MainForm : Form
         var openIdxButton = new Button { Text = "IDX 열기", AutoSize = true };
         var openSpriteListButton = new Button { Text = "list.spr 열기", AutoSize = true };
         var exportButton = new Button { Text = "선택 추출", AutoSize = true, Enabled = false };
+        var importSameSizeButton = new Button { Text = "같은크기 교체", AutoSize = true, Enabled = false };
         toolbar.Controls.Add(openIdxButton);
         toolbar.Controls.Add(openSpriteListButton);
         toolbar.Controls.Add(exportButton);
+        toolbar.Controls.Add(importSameSizeButton);
 
         var list = CreatePakListView();
         var previewTabs = new TabControl { Dock = DockStyle.Fill };
@@ -60,6 +62,7 @@ public sealed class MainForm : Form
         list.SelectedIndexChanged += (_, _) =>
         {
             exportButton.Enabled = list.SelectedItems.Cast<ListViewItem>().Any(item => item.Tag is Pak.IdxRecord { CanExtract: true }) && !string.IsNullOrEmpty(_currentIdxPath);
+            importSameSizeButton.Enabled = CanImportSameSize(list);
             if (list.SelectedItems.Count == 1 && list.SelectedItems[0].Tag is Pak.IdxRecord record)
             {
                 ShowPakPreview(record, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
@@ -74,9 +77,10 @@ public sealed class MainForm : Form
             }
         };
 
-        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton);
+        openIdxButton.Click += (_, _) => LoadIdx(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview, exportButton, importSameSizeButton);
         openSpriteListButton.Click += (_, _) => LoadSpriteList(previewTabs, specialPreview);
         exportButton.Click += (_, _) => ExportSelectedPakRecords(list);
+        importSameSizeButton.Click += (_, _) => ImportSameSizeSelectedPakRecord(list, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
 
         layout.Controls.Add(toolbar, 0, 0);
         layout.Controls.Add(split, 0, 1);
@@ -101,7 +105,7 @@ public sealed class MainForm : Form
         return new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Font = new Font(FontFamily.GenericMonospace, 10) };
     }
 
-    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton)
+    private void LoadIdx(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview, Button exportButton, Button importSameSizeButton)
     {
         using var dialog = new OpenFileDialog { Title = "IDX 파일 선택", Filter = "IDX files (*.idx)|*.idx|All files (*.*)|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
@@ -119,6 +123,7 @@ public sealed class MainForm : Form
             Pak.IdxLoadUiBinder.FillListView(list, state.Records);
             _spritePanel.SetRecords(_currentPakRecords, _currentIdxPath);
             exportButton.Enabled = false;
+            importSameSizeButton.Enabled = false;
             infoPreview.Text = state.InfoText;
             previewTabs.SelectedIndex = 3;
             WriteLog(state.LogText);
@@ -198,6 +203,69 @@ public sealed class MainForm : Form
         }
 
         MessageBox.Show(this, $"추출 완료\n성공: {success}\n실패: {failed}\n건너뜀: {skipped}", "Extract", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private bool CanImportSameSize(ListView list)
+    {
+        if (string.IsNullOrEmpty(_currentIdxPath) || list.SelectedItems.Count != 1)
+        {
+            return false;
+        }
+
+        if (list.SelectedItems[0].Tag is not Pak.IdxRecord record)
+        {
+            return false;
+        }
+
+        return record.CanExtract && record.Compression == 0 && record.CompressedSize is null;
+    }
+
+    private void ImportSameSizeSelectedPakRecord(ListView list, TabControl previewTabs, TextBox textPreview, PictureBox imagePreview, TextBox specialPreview, TextBox infoPreview)
+    {
+        if (string.IsNullOrEmpty(_currentIdxPath) || list.SelectedItems.Count != 1 || list.SelectedItems[0].Tag is not Pak.IdxRecord record)
+        {
+            return;
+        }
+
+        using var dialog = new OpenFileDialog
+        {
+            Title = $"같은 크기 파일 선택 - {record.FileName}",
+            Filter = "All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
+        var validation = Pak.PakEditor.ValidateSameSizeUpdate(pakPath, record, (int)new FileInfo(dialog.FileName).Length);
+        if (!validation.Success)
+        {
+            MessageBox.Show(this, validation.Message, "같은크기 교체 불가", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            WriteLog($"Same-size import blocked: {record.FileName} - {validation.Message}");
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            this,
+            $"선택한 파일로 PAK 내부 데이터를 교체합니다.\n\nRecord: {record.FileName}\nSize: {record.Size:N0} bytes\nBackup: 생성함\n\n계속할까요?",
+            "같은크기 교체 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (confirm != DialogResult.Yes)
+        {
+            return;
+        }
+
+        var result = Pak.PakEditor.ImportSameSize(pakPath, record, dialog.FileName, createBackup: true);
+        if (result.Success)
+        {
+            WriteLog($"Same-size import completed: {record.FileName}, backup={result.BackupPath ?? "none"}");
+            MessageBox.Show(this, $"교체 완료\nBackup: {result.BackupPath ?? "none"}", "같은크기 교체", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            ShowPakPreview(record, previewTabs, textPreview, imagePreview, specialPreview, infoPreview);
+        }
+        else
+        {
+            WriteLog($"Same-size import failed: {record.FileName} - {result.Message}");
+            MessageBox.Show(this, result.Message, "같은크기 교체 실패", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private TabPage CreateSpritePage()
