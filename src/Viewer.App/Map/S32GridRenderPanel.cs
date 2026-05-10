@@ -1,5 +1,11 @@
 namespace Viewer.App.Map;
 
+public enum S32RenderMode
+{
+    ColorGrid,
+    IsoTile
+}
+
 public sealed class S32GridRenderPanel : Panel
 {
     private const int DefaultTileImageDrawAttemptsPerPaint = 512;
@@ -20,6 +26,7 @@ public sealed class S32GridRenderPanel : Panel
     private int _lastTileImageAttemptCount;
     private int _tileImageDrawAttemptLimit = DefaultTileImageDrawAttemptsPerPaint;
     private bool _tileImageRenderEnabled = true;
+    private S32RenderMode _renderMode = S32RenderMode.ColorGrid;
 
     public S32GridRenderPanel()
     {
@@ -31,6 +38,23 @@ public sealed class S32GridRenderPanel : Panel
     }
 
     public float Zoom => _zoom;
+
+    public S32RenderMode RenderMode
+    {
+        get => _renderMode;
+        set
+        {
+            if (_renderMode == value)
+            {
+                return;
+            }
+
+            _renderMode = value;
+            _hoverTile = null;
+            _selectedTile = null;
+            Invalidate();
+        }
+    }
 
     public bool TileImageRenderEnabled
     {
@@ -76,6 +100,7 @@ public sealed class S32GridRenderPanel : Panel
             "====================",
             $"Map      : {(_currentMap is null ? "-" : _currentMap.FileName)}",
             $"Path     : {(_currentMap is null ? "-" : _currentMap.FilePath)}",
+            $"Mode     : {_renderMode}",
             $"Zoom     : {_zoom:0.00}x",
             $"Hover    : {FormatTile(_hoverTile, hoverTileId)}",
             $"Selected : {FormatTile(_selectedTile, selectedTileId)}",
@@ -188,7 +213,14 @@ public sealed class S32GridRenderPanel : Panel
 
         if (_layerSample?.HasLayer1 == true)
         {
-            DrawLayer1ColorGrid(e.Graphics, _layerSample);
+            if (_renderMode == S32RenderMode.IsoTile)
+            {
+                DrawLayer1IsoTiles(e.Graphics, _layerSample);
+            }
+            else
+            {
+                DrawLayer1ColorGrid(e.Graphics, _layerSample);
+            }
         }
         else
         {
@@ -201,6 +233,21 @@ public sealed class S32GridRenderPanel : Panel
     private ContextMenuStrip BuildContextMenu()
     {
         var menu = new ContextMenuStrip();
+        var colorGridMode = new ToolStripMenuItem("Render Mode: Color Grid") { CheckOnClick = true, Checked = true };
+        var isoTileMode = new ToolStripMenuItem("Render Mode: Iso Tile") { CheckOnClick = true };
+        colorGridMode.Click += (_, _) =>
+        {
+            RenderMode = S32RenderMode.ColorGrid;
+            colorGridMode.Checked = true;
+            isoTileMode.Checked = false;
+        };
+        isoTileMode.Click += (_, _) =>
+        {
+            RenderMode = S32RenderMode.IsoTile;
+            colorGridMode.Checked = false;
+            isoTileMode.Checked = true;
+        };
+
         var toggleTileImages = new ToolStripMenuItem("Tile Image Render 켜기/끄기")
         {
             CheckOnClick = true,
@@ -220,6 +267,9 @@ public sealed class S32GridRenderPanel : Panel
         var resetZoom = new ToolStripMenuItem("Zoom 100%") { ShortcutKeyDisplayString = "Reset" };
         resetZoom.Click += (_, _) => ResetZoom();
 
+        menu.Items.Add(colorGridMode);
+        menu.Items.Add(isoTileMode);
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(toggleTileImages);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(lowerLimit);
@@ -274,6 +324,40 @@ public sealed class S32GridRenderPanel : Panel
         DrawTileMarker(graphics, _selectedTile, Color.Yellow, 2);
     }
 
+    private void DrawLayer1IsoTiles(Graphics graphics, S32LayerSample sample)
+    {
+        _lastGridBounds = Rectangle.Empty;
+        _lastCellSize = 0;
+        _lastTileImageAttemptCount = 0;
+        _lastTileImageSuccessCount = 0;
+
+        var options = S32IsoTileLayoutOptions.Default(Width / 2, 120, _zoom);
+        var canAttemptTileImages = _tileImageRenderEnabled && _tileResourceSet is not null && _tileImageDrawAttemptLimit > 0;
+
+        using var gridPen = new Pen(Color.FromArgb(80, 180, 180, 180));
+        for (var y = 0; y < S32LayerSample.Height; y++)
+        {
+            for (var x = 0; x < S32LayerSample.Width; x++)
+            {
+                var tileId = sample.GetTileId(x, y);
+                var target = S32IsoTileLayout.GetImageTarget(x, y, options);
+                var imageDrawn = false;
+
+                if (canAttemptTileImages && _lastTileImageAttemptCount < _tileImageDrawAttemptLimit)
+                {
+                    imageDrawn = TryDrawTileImage(graphics, tileId, target);
+                }
+
+                if (!imageDrawn)
+                {
+                    using var brush = new SolidBrush(BuildTileColor(tileId));
+                    graphics.FillPolygon(brush, S32IsoTileLayout.GetDiamond(x, y, options));
+                    graphics.DrawPolygon(gridPen, S32IsoTileLayout.GetDiamond(x, y, options));
+                }
+            }
+        }
+    }
+
     private bool TryDrawTileImage(Graphics graphics, ushort tileId, Rectangle target)
     {
         if (_tileResourceSet is null || tileId == 0)
@@ -326,6 +410,11 @@ public sealed class S32GridRenderPanel : Panel
 
     private Point? TryGetTileAt(Point location)
     {
+        if (_renderMode == S32RenderMode.IsoTile)
+        {
+            return null;
+        }
+
         if (_layerSample?.HasLayer1 != true || _lastCellSize <= 0 || !_lastGridBounds.Contains(location))
         {
             return null;
@@ -421,6 +510,7 @@ public sealed class S32GridRenderPanel : Panel
             $"S32: {_currentMap!.FileName}",
             $"Coord: {(_currentMap.Coordinate is null ? "unknown" : _currentMap.Coordinate.ToString())}",
             $"Size: {_currentMap.FileSize:N0} bytes",
+            $"Mode: {_renderMode}",
             layerText,
             $"Zoom: {_zoom:0.00}x",
             $"Hover: {FormatTile(_hoverTile, hoverTileId)}",
