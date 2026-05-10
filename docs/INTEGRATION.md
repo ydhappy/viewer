@@ -104,6 +104,15 @@
 - CSV UTF-8 저장 및 기본 escape 처리 추가
 - Render 패널 스냅샷/선택 Tile 정보 API 추가
 
+## 11차 완료
+
+- `Viewer.sln` 솔루션 파일 추가
+- `scripts/build.ps1` 빌드 스크립트 추가
+- `scripts/run.ps1` 실행 스크립트 추가
+- README를 현재 기능 기준으로 갱신
+- `docs/KNOWN_ISSUES.md` 추가
+- 요구 환경, 실행 방법, 알려진 제한사항 정리
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -151,13 +160,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-11차에서는 안정화와 빌드 편의 기능을 보강한다.
+12차에서는 실제 타일 이미지 렌더러 준비를 우선한다.
 
-- 프로젝트 솔루션 파일 추가
-- 빌드/실행 스크립트 추가
-- README 실행 방법 갱신
-- known issues 정리
-- 이후 Tile 이미지 캐시/실제 타일 렌더러 연결
+- Tile.idx 레코드 목록을 Map 탭에서 조회
+- Tile ID 기준 Tile 레코드 탐색 기능 추가
+- Tile 이미지 캐시 인터페이스 추가
+- Tile 변환 실패 시 색상 그리드 fallback 유지
+- 이후 SPR/IMG/TIL 포맷 변환기 연결
 
 ## 주의사항
 
