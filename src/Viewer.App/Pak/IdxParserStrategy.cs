@@ -9,9 +9,40 @@ public sealed record IdxParseContext(
     long PakSize
 );
 
+public sealed record IdxParseResult(
+    IReadOnlyList<IdxRecord> Records,
+    string StrategyName,
+    string StrategyListText,
+    bool IsProbeOnly,
+    string Message
+)
+{
+    public int TotalRecords => Records.Count;
+
+    public int ExtractableRecords => Records.Count(record => record.CanExtract);
+
+    public string ToDisplayText()
+    {
+        return string.Join(Environment.NewLine,
+            "IDX Parse Result",
+            "================",
+            $"Strategy   : {StrategyName}",
+            $"Records    : {TotalRecords:N0}",
+            $"Extractable: {ExtractableRecords:N0}",
+            $"Probe Only : {(IsProbeOnly ? "YES" : "NO")}",
+            $"Message    : {Message}",
+            string.Empty,
+            StrategyListText);
+    }
+}
+
 public interface IIdxParserStrategy
 {
     string Name { get; }
+
+    bool IsProbeOnly { get; }
+
+    string Description { get; }
 
     IReadOnlyList<IdxRecord> Parse(IdxParseContext context);
 }
@@ -24,6 +55,10 @@ public sealed class Classic28IdxParserStrategy : IIdxParserStrategy
     private const int SizeOffset = 24;
 
     public string Name => "classic-28";
+
+    public bool IsProbeOnly => false;
+
+    public string Description => "offset(4) + filename(20) + size(4) 후보 레코드 파서";
 
     public IReadOnlyList<IdxRecord> Parse(IdxParseContext context)
     {
@@ -75,6 +110,10 @@ public sealed class Classic28IdxParserStrategy : IIdxParserStrategy
 public sealed class ExtbHeaderProbeIdxParserStrategy : IIdxParserStrategy
 {
     public string Name => "probe-extb-header";
+
+    public bool IsProbeOnly => true;
+
+    public string Description => "_EXTB$ marker probe. 실제 확장 레코드 파서는 아님";
 
     public IReadOnlyList<IdxRecord> Parse(IdxParseContext context)
     {
@@ -129,6 +168,10 @@ public sealed class ExtbHeaderProbeIdxParserStrategy : IIdxParserStrategy
 public sealed class FallbackIdxParserStrategy : IIdxParserStrategy
 {
     public string Name => "fallback";
+
+    public bool IsProbeOnly => true;
+
+    public string Description => "binary/text fallback 표시용. 추출 가능한 레코드 파서 아님";
 
     public IReadOnlyList<IdxRecord> Parse(IdxParseContext context)
     {
@@ -200,16 +243,31 @@ public sealed class IdxParserStrategyRegistry
 
     public IReadOnlyList<IdxRecord> Parse(IdxParseContext context)
     {
+        return ParseDetailed(context).Records;
+    }
+
+    public IdxParseResult ParseDetailed(IdxParseContext context)
+    {
         foreach (var strategy in _strategies)
         {
             var records = strategy.Parse(context);
             if (records.Count > 0)
             {
-                return records;
+                return new IdxParseResult(
+                    records,
+                    strategy.Name,
+                    ToDisplayText(),
+                    strategy.IsProbeOnly,
+                    strategy.Description);
             }
         }
 
-        return Array.Empty<IdxRecord>();
+        return new IdxParseResult(
+            Array.Empty<IdxRecord>(),
+            "none",
+            ToDisplayText(),
+            true,
+            "No IDX parser strategy produced records.");
     }
 
     public string ToDisplayText()
@@ -217,7 +275,7 @@ public sealed class IdxParserStrategyRegistry
         return string.Join(Environment.NewLine,
             "Registered IDX Parser Strategies",
             "===============================",
-            _strategies.Select(strategy => "- " + strategy.Name));
+            _strategies.Select(strategy => $"- {strategy.Name}: {strategy.Description}"));
     }
 }
 
