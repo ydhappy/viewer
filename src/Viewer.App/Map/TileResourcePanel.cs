@@ -4,10 +4,11 @@ public sealed class TileResourcePanel : UserControl
 {
     private readonly TextBox _searchBox = new();
     private readonly Button _searchButton = new();
+    private readonly Button _converterButton = new();
     private readonly ListView _recordList = new();
     private readonly TextBox _detailBox = new();
     private readonly PictureBox _imagePreview = new();
-    private readonly ITileImageCache _imageCache = new DefaultTileImageCache();
+    private readonly DefaultTileImageCache _imageCache = new();
 
     private TileResourceSet? _tileResourceSet;
 
@@ -35,9 +36,12 @@ public sealed class TileResourcePanel : UserControl
         _searchBox.PlaceholderText = "Tile ID";
         _searchButton.Text = "검색/변환";
         _searchButton.AutoSize = true;
+        _converterButton.Text = "변환기 목록";
+        _converterButton.AutoSize = true;
         toolbar.Controls.Add(new Label { Text = "Tile ID", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_searchBox);
         toolbar.Controls.Add(_searchButton);
+        toolbar.Controls.Add(_converterButton);
 
         var split = new SplitContainer
         {
@@ -81,6 +85,12 @@ public sealed class TileResourcePanel : UserControl
         Controls.Add(layout);
 
         _searchButton.Click += (_, _) => SearchTile(rightTabs);
+        _converterButton.Click += (_, _) =>
+        {
+            ClearImage();
+            _detailBox.Text = _imageCache.GetConverterListText();
+            rightTabs.SelectedIndex = 0;
+        };
         _searchBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -115,7 +125,8 @@ public sealed class TileResourcePanel : UserControl
 
         _detailBox.Text = tileResourceSet.ToDisplayText() + Environment.NewLine + Environment.NewLine +
             $"Displayed Records: {_recordList.Items.Count:N0}" + Environment.NewLine +
-            "※ 목록은 과도한 UI 부하를 막기 위해 최대 5,000개까지만 표시합니다.";
+            "※ 목록은 과도한 UI 부하를 막기 위해 최대 5,000개까지만 표시합니다." + Environment.NewLine + Environment.NewLine +
+            _imageCache.GetConverterListText();
     }
 
     private void SearchTile(TabControl rightTabs)
@@ -180,6 +191,7 @@ public sealed class TileResourcePanel : UserControl
         }
 
         var candidate = TileResourceClassifier.Classify(record);
+        var converterName = _imageCache.GetConverterName(candidate, record);
         _detailBox.Text = string.Join(Environment.NewLine,
             "Tile Record",
             "===========",
@@ -187,6 +199,7 @@ public sealed class TileResourcePanel : UserControl
             $"FileName  : {record.FileName}",
             $"Kind      : {candidate.Kind}",
             $"Candidate : {candidate.Description}",
+            $"Converter : {converterName}",
             $"Offset    : {record.Offset:N0}",
             $"Size      : {record.Size:N0}",
             $"CanExtract: {(record.CanExtract ? "YES" : "NO")}",
