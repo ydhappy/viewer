@@ -161,7 +161,7 @@ public sealed class MainForm : Form
 
                 _currentIdxPath = dialog.FileName;
                 _currentPakRecords = Pak.IdxParser.Parse(dialog.FileName);
-                _spritePanel.SetRecords(_currentPakRecords);
+                _spritePanel.SetRecords(_currentPakRecords, _currentIdxPath);
 
                 foreach (var record in _currentPakRecords)
                 {
