@@ -234,6 +234,7 @@ public sealed class IdxParserStrategyRegistry
         return new IdxParserStrategyRegistry(new IIdxParserStrategy[]
         {
             new ExtbIdxParserStrategy(),
+            new DesIdxParserStrategy(),
             new Classic28IdxParserStrategy(),
             new ExtbHeaderProbeIdxParserStrategy(),
             new FallbackIdxParserStrategy()
