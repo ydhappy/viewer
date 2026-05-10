@@ -212,12 +212,7 @@ public sealed class MainForm : Form
         ClearImage(imagePreview);
         textPreview.Clear();
         specialPreview.Clear();
-        infoPreview.Text = string.Join(Environment.NewLine,
-            $"FileName : {record.FileName}",
-            $"Size     : {record.Size:N0}",
-            $"Offset   : {record.Offset:N0}",
-            $"Format   : {record.Format}",
-            $"Extract  : {(record.CanExtract ? "YES" : "NO")}");
+        infoPreview.Text = Pak.PakPreviewDiagnosticsPresenter.BuildInitialInfo(record, _currentIdxPath);
 
         if (string.IsNullOrEmpty(_currentIdxPath) || !record.CanExtract)
         {
@@ -231,7 +226,7 @@ public sealed class MainForm : Form
             var pakPath = Pak.PakExtractor.ResolvePakPath(_currentIdxPath);
             var data = Pak.PakExtractor.ReadBytes(pakPath, record);
             var kind = Pak.PreviewHelper.DetectKind(record.FileName, data);
-            infoPreview.AppendText(Environment.NewLine + $"Preview  : {kind}" + Environment.NewLine + $"PakPath  : {pakPath}");
+            infoPreview.AppendText(Environment.NewLine + Environment.NewLine + Pak.PakPreviewDiagnosticsPresenter.BuildPreviewSuccessInfo(kind, data.Length));
 
             switch (kind)
             {
@@ -260,7 +255,8 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             textPreview.Text = ex.Message;
-            infoPreview.AppendText(Environment.NewLine + "Preview error: " + ex.Message);
+            infoPreview.AppendText(Environment.NewLine + Environment.NewLine + Pak.PakPreviewDiagnosticsPresenter.BuildPreviewFailureInfo(record, ex, _currentIdxPath));
+            WriteLog(Pak.PakPreviewDiagnosticsPresenter.BuildPreviewFailureLog(record, ex));
             tabs.SelectedIndex = 3;
         }
     }
