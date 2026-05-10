@@ -1,53 +1,40 @@
-using Viewer.App.Pak;
-
 namespace Viewer.App.Map;
 
 public interface ITileImageCache
 {
-    bool TryGetTileImage(int tileId, TileResourceSet tileResourceSet, out Image? image);
+    TileConversionResult GetTileImage(int tileId, TileResourceSet tileResourceSet);
 }
 
 public sealed class NullTileImageCache : ITileImageCache
 {
-    public bool TryGetTileImage(int tileId, TileResourceSet tileResourceSet, out Image? image)
+    public TileConversionResult GetTileImage(int tileId, TileResourceSet tileResourceSet)
     {
-        image = null;
-        return false;
+        var record = tileResourceSet.FindByTileId(tileId);
+        var candidate = record is null ? TileConversionCandidate.Unknown : TileResourceClassifier.Classify(record);
+        return new TileConversionResult(
+            tileId,
+            record,
+            candidate,
+            false,
+            null,
+            "Tile 이미지 캐시가 연결되지 않았습니다.");
     }
 }
 
 public sealed class TileRecordLookup
 {
-    public TileRecordLookup(int tileId, IdxRecord? record, bool hasImage)
+    public TileRecordLookup(int tileId, TileConversionResult conversionResult)
     {
         TileId = tileId;
-        Record = record;
-        HasImage = hasImage;
+        ConversionResult = conversionResult;
     }
 
     public int TileId { get; }
 
-    public IdxRecord? Record { get; }
-
-    public bool HasImage { get; }
+    public TileConversionResult ConversionResult { get; }
 
     public string ToDisplayText()
     {
-        if (Record is null)
-        {
-            return $"Tile ID {TileId}에 해당하는 레코드를 찾지 못했습니다.";
-        }
-
-        return string.Join(Environment.NewLine,
-            "Tile Record Lookup",
-            "==================",
-            $"Tile ID     : {TileId}",
-            $"Record Index: {Record.Index}",
-            $"FileName    : {Record.FileName}",
-            $"Offset      : {Record.Offset:N0}",
-            $"Size        : {Record.Size:N0}",
-            $"CanExtract  : {(Record.CanExtract ? "YES" : "NO")}",
-            $"Format      : {Record.Format}",
-            $"Image Cache : {(HasImage ? "HIT" : "MISS / not implemented")}");
+        return ConversionResult.ToDisplayText();
     }
 }
