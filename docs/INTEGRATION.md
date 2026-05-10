@@ -125,6 +125,19 @@
 - Tile ID 검색 및 레코드 상세 표시 추가
 - 실제 Tile 이미지 변환 실패 시 색상 그리드 fallback을 유지할 구조 마련
 
+## 13차 완료
+
+- `TileConversionCandidate` 추가
+- `TileConversionResult` 추가
+- `TileResourceClassifier` 추가
+- `DefaultTileImageCache` 추가
+- Tile 레코드 확장자 기반 변환 후보 분류 추가
+- PNG/BMP/JPG/JPEG/GIF 직접 이미지 변환 우선 지원
+- SPR/IMG/TIL/TBT는 전용 변환기 필요 상태로 명확히 표시
+- Tile 검색/변환 시 변환 성공/실패 사유 표시
+- 직접 이미지 변환 성공 시 Tile 패널 Image 탭에 미리보기 표시
+- Tile 패널 레코드 목록에 Kind 컬럼 추가
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -172,13 +185,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-13차에서는 실제 변환기 준비를 우선한다.
+14차에서는 변환기 확장 포인트를 더 분리한다.
 
-- Tile 레코드의 확장자/파일명 기반 변환 후보 분류
-- TIL/IMG/Spr 계열 변환기 인터페이스 추가
-- 변환 실패 사유를 Tile 패널에 표시
-- Tile ID 선택 시 캐시 조회/변환 시도 흐름 추가
-- 실제 이미지 변환 가능 포맷부터 순차 지원
+- `ITileResourceConverter` 인터페이스 추가
+- DirectImage/TIL/IMG/SPR 변환기 클래스를 분리
+- 변환기 등록/선택 파이프라인 추가
+- Tile 패널에서 사용 가능한 변환기 목록 표시
+- 이후 TIL/IMG 실제 변환 로직 흡수
 
 ## 주의사항
 
