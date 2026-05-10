@@ -6,7 +6,8 @@ public sealed class TileResourcePanel : UserControl
     private readonly Button _searchButton = new();
     private readonly ListView _recordList = new();
     private readonly TextBox _detailBox = new();
-    private readonly ITileImageCache _imageCache = new NullTileImageCache();
+    private readonly PictureBox _imagePreview = new();
+    private readonly ITileImageCache _imageCache = new DefaultTileImageCache();
 
     private TileResourceSet? _tileResourceSet;
 
@@ -32,7 +33,7 @@ public sealed class TileResourcePanel : UserControl
 
         _searchBox.Width = 120;
         _searchBox.PlaceholderText = "Tile ID";
-        _searchButton.Text = "검색";
+        _searchButton.Text = "검색/변환";
         _searchButton.AutoSize = true;
         toolbar.Controls.Add(new Label { Text = "Tile ID", AutoSize = true, Padding = new Padding(0, 6, 4, 0) });
         toolbar.Controls.Add(_searchBox);
@@ -52,10 +53,12 @@ public sealed class TileResourcePanel : UserControl
         _recordList.MultiSelect = false;
         _recordList.Columns.Add("Index", 70, HorizontalAlignment.Right);
         _recordList.Columns.Add("FileName", 260, HorizontalAlignment.Left);
+        _recordList.Columns.Add("Kind", 90, HorizontalAlignment.Left);
         _recordList.Columns.Add("Size", 110, HorizontalAlignment.Right);
         _recordList.Columns.Add("Offset", 110, HorizontalAlignment.Right);
         _recordList.Columns.Add("Extract", 70, HorizontalAlignment.Center);
 
+        var rightTabs = new TabControl { Dock = DockStyle.Fill };
         _detailBox.Dock = DockStyle.Fill;
         _detailBox.Multiline = true;
         _detailBox.ReadOnly = true;
@@ -63,20 +66,27 @@ public sealed class TileResourcePanel : UserControl
         _detailBox.Font = new Font(FontFamily.GenericMonospace, 10);
         _detailBox.Text = "Tile.idx를 열면 이곳에 타일 리소스 상태와 레코드 목록이 표시됩니다.";
 
+        _imagePreview.Dock = DockStyle.Fill;
+        _imagePreview.SizeMode = PictureBoxSizeMode.Zoom;
+        _imagePreview.BackColor = Color.Black;
+
+        rightTabs.TabPages.Add(new TabPage("Detail") { Controls = { _detailBox } });
+        rightTabs.TabPages.Add(new TabPage("Image") { Controls = { _imagePreview } });
+
         split.Panel1.Controls.Add(_recordList);
-        split.Panel2.Controls.Add(_detailBox);
+        split.Panel2.Controls.Add(rightTabs);
 
         layout.Controls.Add(toolbar, 0, 0);
         layout.Controls.Add(split, 0, 1);
         Controls.Add(layout);
 
-        _searchButton.Click += (_, _) => SearchTile();
+        _searchButton.Click += (_, _) => SearchTile(rightTabs);
         _searchBox.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
             {
                 e.SuppressKeyPress = true;
-                SearchTile();
+                SearchTile(rightTabs);
             }
         };
         _recordList.SelectedIndexChanged += (_, _) => ShowSelectedRecord();
@@ -86,14 +96,17 @@ public sealed class TileResourcePanel : UserControl
     {
         _tileResourceSet = tileResourceSet;
         _recordList.Items.Clear();
+        ClearImage();
 
         foreach (var record in tileResourceSet.Records.Take(5000))
         {
+            var candidate = TileResourceClassifier.Classify(record);
             var item = new ListViewItem(record.Index.ToString())
             {
                 Tag = record
             };
             item.SubItems.Add(record.FileName);
+            item.SubItems.Add(candidate.Kind.ToString());
             item.SubItems.Add(record.Size.ToString("N0"));
             item.SubItems.Add(record.Offset.ToString("N0"));
             item.SubItems.Add(record.CanExtract ? "YES" : "NO");
@@ -105,28 +118,41 @@ public sealed class TileResourcePanel : UserControl
             "※ 목록은 과도한 UI 부하를 막기 위해 최대 5,000개까지만 표시합니다.";
     }
 
-    private void SearchTile()
+    private void SearchTile(TabControl rightTabs)
     {
+        ClearImage();
+
         if (_tileResourceSet is null)
         {
             _detailBox.Text = "Tile.idx가 아직 로드되지 않았습니다.";
+            rightTabs.SelectedIndex = 0;
             return;
         }
 
         if (!int.TryParse(_searchBox.Text.Trim(), out var tileId))
         {
             _detailBox.Text = "검색할 Tile ID를 숫자로 입력하세요.";
+            rightTabs.SelectedIndex = 0;
             return;
         }
 
-        var record = _tileResourceSet.FindByTileId(tileId);
-        var hasImage = _imageCache.TryGetTileImage(tileId, _tileResourceSet, out _);
-        var lookup = new TileRecordLookup(tileId, record, hasImage);
+        var conversionResult = _imageCache.GetTileImage(tileId, _tileResourceSet);
+        var lookup = new TileRecordLookup(tileId, conversionResult);
         _detailBox.Text = lookup.ToDisplayText();
 
-        if (record is not null)
+        if (conversionResult.Record is not null)
         {
-            SelectRecord(record);
+            SelectRecord(conversionResult.Record);
+        }
+
+        if (conversionResult.Success && conversionResult.Image is not null)
+        {
+            _imagePreview.Image = new Bitmap(conversionResult.Image);
+            rightTabs.SelectedIndex = 1;
+        }
+        else
+        {
+            rightTabs.SelectedIndex = 0;
         }
     }
 
@@ -146,19 +172,33 @@ public sealed class TileResourcePanel : UserControl
 
     private void ShowSelectedRecord()
     {
+        ClearImage();
+
         if (_recordList.SelectedItems.Count != 1 || _recordList.SelectedItems[0].Tag is not Viewer.App.Pak.IdxRecord record)
         {
             return;
         }
 
+        var candidate = TileResourceClassifier.Classify(record);
         _detailBox.Text = string.Join(Environment.NewLine,
             "Tile Record",
             "===========",
             $"Index     : {record.Index}",
             $"FileName  : {record.FileName}",
+            $"Kind      : {candidate.Kind}",
+            $"Candidate : {candidate.Description}",
             $"Offset    : {record.Offset:N0}",
             $"Size      : {record.Size:N0}",
             $"CanExtract: {(record.CanExtract ? "YES" : "NO")}",
-            $"Format    : {record.Format}");
+            $"Format    : {record.Format}",
+            string.Empty,
+            "※ 이미지 변환은 Tile ID 검색/변환 버튼으로 실행합니다.");
+    }
+
+    private void ClearImage()
+    {
+        var oldImage = _imagePreview.Image;
+        _imagePreview.Image = null;
+        oldImage?.Dispose();
     }
 }
