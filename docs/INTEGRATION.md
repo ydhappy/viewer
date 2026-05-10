@@ -189,6 +189,17 @@
 - 변환 결과 이미지를 클립보드에 복사하는 기능 추가
 - Known Issues에 Raw Byte 진단 이미지 크기 제한과 저장/복사 범위 기록
 
+## 19차 완료
+
+- `SpriteListEntry` 추가
+- `SpriteListCatalog` 추가
+- `SpriteListParser` 추가
+- PAK 탭에 `list.spr 열기` 버튼 추가
+- list.spr 텍스트/CSV/탭/공백 구분 후보 파싱 추가
+- SPR ID / 이름 기반 매핑 구조 추가
+- `.spr` 리소스 선택 시 Special 탭에 list.spr 매핑 정보 표시
+- 실제 SPR 렌더러 이식 전 Sprite 그룹/액션/프레임 데이터 흐름 구성
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -236,12 +247,13 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-19차에서는 SPR/list.spr 흐름을 별도 모듈로 준비한다.
+20차에서는 Sprite 전용 탭/패널을 분리한다.
 
-- list.spr 파일 선택/파싱 자리 추가
-- SPR ID와 SPR 레코드 매핑 구조 추가
-- Sprite 그룹/액션/프레임 표시 모델 준비
-- 실제 SPR 렌더러 이식 전 데이터 흐름 구성
+- Sprite 목록 전용 ListView 추가
+- list.spr entry 검색/필터 추가
+- 선택한 entry와 PAK SPR record 역매핑 표시
+- SPR 렌더러 placeholder 패널 추가
+- 이후 실제 SPR 프레임 디코더 이식
 
 ## 주의사항
 
