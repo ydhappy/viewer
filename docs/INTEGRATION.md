@@ -246,6 +246,19 @@
 - SPR raw preview PNG 저장 기능 추가
 - 실제 SPR 렌더링 전 시각 검증 흐름 구성
 
+## 24차 완료
+
+- `SpriteRawPreviewOptions` 추가
+- Raw preview builder에 수동 width/offset/frame index/zoom 옵션 추가
+- Sprite 패널 Raw Preview 탭에 width 입력 추가
+- Sprite 패널 Raw Preview 탭에 payload offset 입력 추가
+- Sprite 패널 Raw Preview 탭에 frame index 입력 추가
+- Sprite 패널 Raw Preview 탭에 이전/다음 frame 이동 버튼 추가
+- Sprite 패널 Raw Preview 탭에 zoom percent 입력 추가
+- `Preview 갱신` 버튼 추가
+- nearest-neighbor 확대 적용으로 raw pixel 패턴 확인성 보강
+- 실제 SPR 프레임 디코더 이식 전 수동 검증 도구 강화
+
 현재 적용된 classic-28 파서는 보호/암호화 IDX나 확장 IDX를 완전히 처리하지 않는다. 보호 IDX는 PakViewer의 CorePakTools/Decode 계열 로직이 필요하므로 별도 단계에서 흡수한다.
 
 ## PakViewer 흡수 대상
@@ -293,13 +306,12 @@ L1MapViewer README 기준 핵심 기능은 다음과 같다.
 
 ## 다음 단계
 
-24차에서는 Sprite raw preview 조작성을 보강한다.
+25차에서는 현재까지 추가된 대형 UI 변경의 문서/안정화를 보강한다.
 
-- preview width 수동 선택
-- payload offset 수동 선택
-- frame index 후보 이동
-- raw preview 확대/축소
-- 실제 SPR 프레임 디코더 이식 전 수동 검증 도구 강화
+- README에 Sprite 탭/Raw Preview 기능 반영
+- Known Issues에 SPR raw preview 한계 기록
+- SpriteRawPreview/SpriteResourcePanel 컴파일 영향 점검
+- 이후 원본 SPR 디코더 이식 후보 재탐색
 
 ## 주의사항
 
