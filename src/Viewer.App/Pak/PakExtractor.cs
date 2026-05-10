@@ -76,7 +76,7 @@ public static class PakExtractor
         }
         catch (Exception ex)
         {
-            throw new InvalidDataException(PakRecordDiagnostics.BuildFailureMessage(BuildDecodeFailureReason(record), record, pakPath, pakSize, ex), ex);
+            throw new InvalidDataException(PakRecordDiagnostics.BuildFailureMessage(BuildDecodeFailureReason(record, data), record, pakPath, pakSize, ex), ex);
         }
     }
 
@@ -104,13 +104,37 @@ public static class PakExtractor
 
     private static byte[] DecodeRecordData(byte[] data, IdxRecord record)
     {
-        return record.Compression switch
+        var compression = record.Compression == 0 && record.CompressedSize is > 0
+            ? DetectExtBCompression(data)
+            : record.Compression;
+
+        return compression switch
         {
             0 => TrimUncompressed(data, record.Size),
             1 => DecompressZlib(data, record.Size),
             2 => DecompressBrotli(data, record.Size),
-            _ => throw new NotSupportedException($"Unsupported ExtB compression type: {record.Compression}")
+            _ => throw new NotSupportedException($"Unsupported ExtB compression type: {compression}")
         };
+    }
+
+    public static int DetectExtBCompression(byte[] header)
+    {
+        if (header.Length < 2)
+        {
+            return 0;
+        }
+
+        if (header[0] == 0x78 && (header[1] == 0x9C || header[1] == 0xDA || header[1] == 0x01 || header[1] == 0x5E))
+        {
+            return 1;
+        }
+
+        if (header[0] == 0x5B || header[0] == 0x1B)
+        {
+            return 2;
+        }
+
+        return 0;
     }
 
     private static string BuildPackedSizeFailureReason(IdxRecord record)
@@ -120,14 +144,19 @@ public static class PakExtractor
             : "Packed size missing: compressed record does not have a calculated packed byte size.";
     }
 
-    private static string BuildDecodeFailureReason(IdxRecord record)
+    private static string BuildDecodeFailureReason(IdxRecord record, byte[] data)
     {
-        return record.Compression switch
+        var detectedCompression = DetectExtBCompression(data);
+        var effectiveCompression = record.Compression == 0 && record.CompressedSize is > 0
+            ? detectedCompression
+            : record.Compression;
+
+        return effectiveCompression switch
         {
             0 => "Raw record conversion failed.",
             1 => "Zlib decompression failed: compression type 1 data could not be decoded.",
             2 => "Brotli decompression failed: compression type 2 data could not be decoded.",
-            _ => $"Unsupported compression type: {record.Compression}."
+            _ => $"Unsupported compression type: {effectiveCompression}."
         };
     }
 
